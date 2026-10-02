@@ -262,7 +262,7 @@
       <img class="brand-logo" src="/logo.png" alt="RING SATOE SALES">
       <h1>RING SATOE SALES</h1>
       <div class="sub">Laporan Sales Ring 1 · login pakai NIK</div>
-      <div style="margin-top:10px;"><button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button></div>
+      <div style="margin-top:10px;"><button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button> <button class="iconbtn hide" data-act="install" title="Install App" aria-label="Install App">📲</button></div>
     </div>
     <div class="card">
       <label>Kode Toko</label>
@@ -304,7 +304,7 @@
   <div id="scr-app" class="hide">
     <div class="topbar">
       <div class="who"><b id="whoToko">-</b><span id="whoKode">-</span></div>
-      <button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button>
+      <span style="display:inline-flex;gap:8px;align-items:center;"><button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button> <button class="iconbtn hide" data-act="install" title="Install App" aria-label="Install App">📲</button></span>
       <div class="who" style="text-align:right;"><b id="whoUser" style="font-size:13px;">-</b><span id="whoRole">-</span></div>
     </div>
 
@@ -335,7 +335,7 @@
   <div id="scr-dash" class="hide">
     <div class="topbar">
       <div class="who"><b>📊 Dashboard</b><span id="dashSub">semua toko</span></div>
-      <button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button>
+      <span style="display:inline-flex;gap:8px;align-items:center;"><button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button> <button class="iconbtn hide" data-act="install" title="Install App" aria-label="Install App">📲</button></span>
       <div class="who" style="text-align:right;"><b id="dashWho" style="font-size:13px;">-</b><span id="dashRole">-</span></div>
     </div>
     <div id="dashToko" class="hide">
@@ -450,7 +450,7 @@
   <div id="scr-admin" class="hide">
     <div class="topbar">
       <div class="who"><b>⚙️ Setting</b><span>khusus admin</span></div>
-      <button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button>
+      <span style="display:inline-flex;gap:8px;align-items:center;"><button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button> <button class="iconbtn hide" data-act="install" title="Install App" aria-label="Install App">📲</button></span>
     </div>
 
     <div id="adminBody">
@@ -799,7 +799,37 @@ function init(){
   document.addEventListener('click', function(e){
     var b=e.target.closest ? e.target.closest('[data-act="theme"]') : null;
     if(b) openTheme();
+    var bi=e.target.closest ? e.target.closest('[data-act="install"]') : null;
+    if(bi) pwaInstall();
   });
+  /* ===== PWA Install: tombol muncul jika bisa diinstall & belum terinstall ===== */
+  var _deferredPrompt=null;
+  function _isAppInstalled(){
+    try{
+      if(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+      if(window.navigator.standalone===true) return true;
+    }catch(e){}
+    return false;
+  }
+  function _refreshInstallBtns(){
+    var show=!!_deferredPrompt && !_isAppInstalled();
+    var els=document.querySelectorAll('[data-act="install"]');
+    for(var i=0;i<els.length;i++) els[i].classList.toggle('hide', !show);
+  }
+  function pwaInstall(){
+    if(!_deferredPrompt) return;
+    _deferredPrompt.prompt();
+    _deferredPrompt.userChoice.then(function(){ _deferredPrompt=null; _refreshInstallBtns(); });
+  }
+  window.addEventListener('beforeinstallprompt', function(e){
+    e.preventDefault(); _deferredPrompt=e; _refreshInstallBtns();
+  });
+  window.addEventListener('appinstalled', function(){
+    _deferredPrompt=null; _refreshInstallBtns();
+    if(typeof toast==='function') toast('App terinstall!');
+  });
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', _refreshInstallBtns);
+  else _refreshInstallBtns();
   document.getElementById('navbar').addEventListener('click', function(e){
     var b=e.target.closest ? e.target.closest('button[data-v]') : null;
     if(b && b.dataset && b.dataset.v) navGo(b.dataset.v);
