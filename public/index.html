@@ -3,8 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
 <meta name="theme-color" content="#0ea5e9">
-<link rel="apple-touch-icon" href="/icons/icon-192.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -152,6 +154,7 @@
   .brand{text-align:center; margin:26px 0 18px;}
   .brand-ic{display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:20px;
     background:var(--card); border:1px solid var(--line); font-size:32px; box-shadow:var(--shadow); margin-bottom:10px;}
+  .brand-logo{width:120px; height:120px; border-radius:28px; box-shadow:var(--shadow); margin-bottom:10px;}
   .brand h1{margin:0;}
   .brand .sub{margin:6px 0 0;}
   /* ============ THEME SHEET ============ */
@@ -256,7 +259,7 @@
   <!-- ============ LOGIN ============ -->
   <div id="scr-login">
     <div class="brand">
-      <span class="brand-ic">🏪</span>
+      <img class="brand-logo" src="/logo.png" alt="RING SATOE SALES">
       <h1>RING SATOE SALES</h1>
       <div class="sub">Laporan Sales Ring 1 · login pakai NIK</div>
       <div style="margin-top:10px;"><button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button></div>
