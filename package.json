@@ -1,0 +1,9 @@
+{
+  "name": "ring-satoe-sales",
+  "version": "1.0.0",
+  "description": "RING SATOE SALES - migrated from Apps Script to Vercel",
+  "type": "module",
+  "dependencies": {
+    "googleapis": "^128.0.0"
+  }
+}
