@@ -5,7 +5,7 @@ import {
   parseNum_,
   apiGetStores, apiLookupNik,
   requireAdminNik_, laporCfgGet_, laporCfgSet_,
-  approvalList_, approvalAdd_, approvalDel_,
+  approvalList_, approvalAdd_, approvalDel_, clearReport_,
 } from '../lib/utils.js';
 
 /** Setting laporan (admin only untuk tulis) */
@@ -47,6 +47,7 @@ export default async function handler(req, res) {
       case 'approval_list': return res.status(200).json(await approvalList_(nik));
       case 'approval_add':  return res.status(200).json(await approvalAdd_(nik, kode, iso, shift, alasan));
       case 'approval_del':  return res.status(200).json(await approvalDel_(nik, id));
+      case 'clear_report':  return res.status(200).json(await clearReport_(nik, kode, iso, shift));
       default:          return res.status(400).json({ error: 'Unknown action: ' + action });
     }
   } catch (e) {
