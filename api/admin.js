@@ -4,16 +4,16 @@ import { laporCfgDefault_ } from '../lib/config.js';
 import {
   parseNum_,
   apiGetStores, apiLookupNik,
-  requireAdminNik_, laporCfgGet_, laporCfgSet_,
+  requireAdminNik_, laporCfgGetAsync_, laporCfgSet_,
   approvalList_, approvalAdd_, approvalDel_, clearReport_,
 } from '../lib/utils.js';
 
 /** Setting laporan (admin only untuk tulis) */
-export function apiLaporCfgGet(nik) { requireAdminNik_(nik); return laporCfgGet_(); }
+export async function apiLaporCfgGet(nik) { requireAdminNik_(nik); return await laporCfgGetAsync_(); }
 
-export function apiLaporCfgSet(nik, cfg) {
+export async function apiLaporCfgSet(nik, cfg) {
   requireAdminNik_(nik);
-  const cur = laporCfgGet_();
+  const cur = await laporCfgGetAsync_();
   const d = laporCfgDefault_();
   cfg = cfg || {};
   ['cabang', 'ac', 'am'].forEach((k) => { d[k] = String(cfg[k] || '').trim(); });
@@ -31,7 +31,7 @@ export function apiLaporCfgSet(nik, cfg) {
   d.psmW = arr(cfg.psmW, 4); d.pwpP = arr(cfg.pwpP, 2); d.sgP = arr(cfg.sgP, 2);
   // Catatan Vercel: ScriptProperties tidak ada di serverless. Nilai disimpan
   // in-memory per instance + sebaiknya di-persist via env LAPOR_CFG (JSON).
-  laporCfgSet_(d);
+  await laporCfgSet_(d);
   return { ok: true };
 }
 
@@ -40,8 +40,8 @@ export default async function handler(req, res) {
   const { action, nik, cfg, kode, iso, shift, alasan, id } = req.body || {};
   try {
     switch (action) {
-      case 'cfgget':    return res.status(200).json(apiLaporCfgGet(nik));
-      case 'cfgset':    return res.status(200).json(apiLaporCfgSet(nik, cfg));
+      case 'cfgget':    return res.status(200).json(await apiLaporCfgGet(nik));
+      case 'cfgset':    return res.status(200).json(await apiLaporCfgSet(nik, cfg));
       case 'stores':    return res.status(200).json(await apiGetStores());
       case 'lookupnik': return res.status(200).json(await apiLookupNik(nik));
       case 'approval_list': return res.status(200).json(await approvalList_(nik));
