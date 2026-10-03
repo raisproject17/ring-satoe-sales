@@ -503,6 +503,20 @@
         </table></div>
         <div class="legend">Actual = RTD + ONIGIRI per shift. Ngopi Day (Senin/Rabu/Jumat) pakai target NGOPI DAY, hari lain REGULER. Target bisa diedit di sheet TARGET_KHUSUS.</div>
       </div>
+      <div class="card">
+        <h2>✅ Approval Laporan Langsung</h2>
+        <div class="legend">Beri izin ke toko untuk lapor walau shift sebelumnya belum isi (misal: tutup / SO grand). Approval berlaku untuk 1 toko + 1 tanggal + 1 shift.</div>
+        <div class="grid2">
+          <div><label>Toko</label><select id="apToko"></select></div>
+          <div><label>Tanggal</label><input type="date" id="apTgl"></div>
+          <div><label>Shift</label><select id="apShift"><option value="1">SHIFT 1</option><option value="2">SHIFT 2</option><option value="3">SHIFT 3</option></select></div>
+          <div><label>Alasan</label><input type="text" id="apAlasan" placeholder="cth: Tutup SO Grand"></div>
+        </div>
+        <div style="height:8px"></div>
+        <button class="btn ok" onclick="addApproval()">✅ Beri Approval</button>
+        <div style="height:12px"></div>
+        <div id="apList"><div class="legend">Memuat...</div></div>
+      </div>
     </div>
   </div>
 
@@ -563,6 +577,9 @@ var API_MAP = {
   'apiLaporCfgSet':  ['/api/admin',     'cfgset',    ['nik','cfg']],
   'apiGetStores':    ['/api/admin',     'stores',    []],
   'apiLookupNik':    ['/api/admin',     'lookupnik', ['nik']],
+  'apiApprovalList': ['/api/admin',     'approval_list', ['nik']],
+  'apiApprovalAdd':  ['/api/admin',     'approval_add',  ['nik','kode','iso','shift','alasan']],
+  'apiApprovalDel':  ['/api/admin',     'approval_del',  ['nik','id']],
 };
 function run(args){
   var fnName = args[0];
@@ -1167,8 +1184,11 @@ function initAdmin(){
   if(S.role!=='admin'){ toast('Khusus admin'); return; }
   var d=document.getElementById('beanTgl');
   if(!d.value) d.value=todayISO();
+  var ad=document.getElementById('apTgl');
+  if(ad && !ad.value) ad.value=todayISO();
   loadBeanspot();
   loadLaporCfg();
+  loadApprovals();
 }
 function loadLaporCfg(){
   run(['apiLaporCfgGet',S.nik]).then(function(c){
@@ -1196,6 +1216,40 @@ function saveLaporCfg(){
   run(['apiLaporCfgSet',S.nik,cfg]).then(function(){
     toast('\u2705 Setting laporan tersimpan');
   }).catch(function(e){ toast('\u274c '+(e.message||e)); });
+}
+/* ===== Approval Laporan Langsung ===== */
+function loadApprovals(){
+  run(['apiApprovalList',S.nik]).then(function(list){
+    var el=document.getElementById('apList');
+    // isi dropdown toko
+    var sel=document.getElementById('apToko');
+    if(sel && !sel.options.length && S.stores){
+      sel.innerHTML=S.stores.map(function(s){ return '<option value="'+esc(s.kode)+'">'+esc(s.kode)+' — '+esc(s.nama)+'</option>'; }).join('');
+    }
+    if(!list || !list.length){ el.innerHTML='<div class="legend">Belum ada approval.</div>'; return; }
+    el.innerHTML='<table><thead><tr><th>Tanggal</th><th>Toko</th><th>Shift</th><th>Alasan</th><th>Oleh</th><th></th></tr></thead><tbody>'
+      + list.map(function(a){
+        return '<tr><td>'+esc(a.iso)+'</td><td><b>'+esc(a.kode)+'</b></td><td>SHIFT '+a.shift+'</td><td>'+esc(a.alasan)+'</td><td>'+esc(a.oleh)+'</td>'
+          + '<td><button class="btn ghost sm" onclick="delApproval(\''+a.id+'\')">🗑️</button></td></tr>';
+      }).join('') + '</tbody></table>';
+  }).catch(function(e){ document.getElementById('apList').innerHTML='<div class="legend">Gagal: '+esc(e.message||e)+'</div>'; });
+}
+function addApproval(){
+  var kode=document.getElementById('apToko').value;
+  var iso=document.getElementById('apTgl').value;
+  var shift=document.getElementById('apShift').value;
+  var alasan=document.getElementById('apAlasan').value;
+  if(!kode||!iso||!alasan){ toast('Lengkapi toko, tanggal & alasan'); return; }
+  run(['apiApprovalAdd',S.nik,kode,iso,shift,alasan]).then(function(){
+    toast('✅ Approval diberikan');
+    document.getElementById('apAlasan').value='';
+    loadApprovals();
+  }).catch(function(e){ toast('❌ '+(e.message||e)); });
+}
+function delApproval(id){
+  if(!confirm('Hapus approval ini?')) return;
+  run(['apiApprovalDel',S.nik,id]).then(function(){ toast('Approval dihapus'); loadApprovals(); })
+    .catch(function(e){ toast('❌ '+(e.message||e)); });
 }
 function loadBeanspot(){
   var iso=document.getElementById('beanTgl').value || todayISO();
