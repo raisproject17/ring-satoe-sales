@@ -68,7 +68,9 @@ export async function apiRanking(iso, mode) {
       if (!acc[k]) acc[k] = { kode: s.kode, nama: s.toko, nettT: 0, nettA: 0, stdA: null, done: false };
       const n = s.vals.nett || {};
       acc[k].nettT = mtd ? (flatT[k] || 0) : (acc[k].nettT + (n.t || 0));
-      acc[k].nettA += (n.a === null || n.a === undefined) ? 0 : n.a;
+      // NETT SALES actual: input terakhir saja (tidak akumulasi MTD)
+      const na = (n.a === null || n.a === undefined) ? 0 : n.a;
+      acc[k].nettA = mtd ? (isEnd ? na : acc[k].nettA) : (acc[k].nettA + na);
       if (isEnd) {
         acc[k].stdA = s.vals.std ? s.vals.std.a : null;
         acc[k].done = s.report.toUpperCase().indexOf('DONE') >= 0;
@@ -133,7 +135,9 @@ export async function apiRekap(iso, mode) {
       if (!acc[k]) acc[k] = { kode: s.kode, toko: s.toko, done: false, nettT: 0, nettA: 0, stdT: 0, stdA: 0 };
       const n = s.vals.nett || {}, std = s.vals.std || {};
       acc[k].nettT = mtd ? ((flatT[k] || {}).nett || 0) : (acc[k].nettT + (n.t || 0));
-      acc[k].nettA += (n.a === null || n.a === undefined) ? 0 : n.a;
+      // NETT SALES actual: input terakhir saja (tidak akumulasi MTD)
+      const na = (n.a === null || n.a === undefined) ? 0 : n.a;
+      acc[k].nettA = mtd ? (isEnd ? na : acc[k].nettA) : (acc[k].nettA + na);
       acc[k].stdT = mtd ? ((flatT[k] || {}).std || 0) : (acc[k].stdT + (std.t || 0));
       acc[k].stdA += (std.a === null || std.a === undefined) ? 0 : std.a;
       compKeys.forEach((ck) => {
@@ -220,7 +224,9 @@ export async function apiTokoDash(kode, iso, mode) {
         agg[k].t = mtd ? (flatVals[k] || 0) : (agg[k].t + (v.t || 0));
         // Untuk MTD: pakai ttl kalau ada, else a
         const av = (v.ttl !== undefined && v.ttl !== null) ? v.ttl : (v.a || 0);
-        agg[k].a += av;
+        // NETT SALES actual: input terakhir saja (tidak akumulasi MTD)
+        if (mtd && k === 'nett') { agg[k].a = av; }
+        else { agg[k].a += av; }
       });
     });
   }
