@@ -1,5 +1,5 @@
 // RING SATOE SALES - Service Worker (PWA installable)
-const CACHE = 'ring-satoe-v1';
+const CACHE = 'ring-satoe-v2';
 const CORE = ['/', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
