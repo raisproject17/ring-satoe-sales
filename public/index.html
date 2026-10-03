@@ -923,6 +923,31 @@ function loadForm(){
     clearFormDirty();
     body.querySelectorAll('input').forEach(function(i){
       i.addEventListener('input', markFormDirty);
+      // Auto-format: ribuan pakai titik (kecuali GM% yang pakai koma desimal)
+      i.addEventListener('input', function(){
+        var k=i.getAttribute('data-k')||'';
+        if(k==='gm'){
+          // GM%: titik jadi koma
+          var v=i.value.replace(/\./g, ',');
+          // hanya satu koma
+          var parts=v.split(',');
+          if(parts.length>2) v=parts[0]+','+parts.slice(1).join('');
+          if(v!==i.value){ i.value=v; }
+          return;
+        }
+        // Lainnya: format ribuan otomatis
+        var raw=i.value.replace(/[^0-9]/g,'');
+        if(!raw){ if(i.value!=='' ) i.value=''; return; }
+        var fmt=raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        if(fmt!==i.value){
+          var pos=i.selectionStart;
+          var oldLen=i.value.length;
+          i.value=fmt;
+          // jaga posisi kursor
+          var diff=fmt.length-oldLen;
+          try{ i.setSelectionRange(pos+diff, pos+diff); }catch(e){}
+        }
+      });
     });
     document.getElementById('inNikKasir').value=mine.nikKasir||'';
     document.getElementById('inNamaKasir').value='';
