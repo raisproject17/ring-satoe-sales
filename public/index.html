@@ -456,7 +456,7 @@
     <div id="adminBody">
       <div class="card">
         <h2>⚙️ Setting Laporan Cabang</h2>
-        <div class="legend">Nama, target mingguan/periode PSM·PWP·SERBA GRATIS untuk teks laporan WA.</div>
+        <div class="legend">Nama, target mingguan/periode PSM·PWP·SERBA GRATIS untuk teks laporan WA. <b>Otomatis tersimpan</b> setiap ada perubahan.</div>
         <div class="grid2">
           <div><label>Nama cabang</label><input type="text" id="lcCabang" placeholder="RING SATOE"></div>
           <div><label>Nama AC</label><input type="text" id="lcAc"></div>
@@ -1189,6 +1189,7 @@ function initAdmin(){
   loadBeanspot();
   loadLaporCfg();
   loadApprovals();
+  initLaporCfgAutoSave();
 }
 function loadLaporCfg(){
   run(['apiLaporCfgGet',S.nik]).then(function(c){
@@ -1207,15 +1208,33 @@ function loadLaporCfg(){
     }
   }).catch(function(e){ toast('Gagal: '+(e.message||e)); });
 }
-function saveLaporCfg(){
+function saveLaporCfg(silent){
   var g=function(id){ return document.getElementById(id).value; };
   var cfg={ cabang:g('lcCabang'), ac:g('lcAc'), am:g('lcAm'), jml:g('lcJml'), reg:g('lcReg'), fr:g('lcFr'),
     bjR:g('lcBjR'), bjO:g('lcBjO'),
     psmW:[g('lcPsm0'),g('lcPsm1'),g('lcPsm2'),g('lcPsm3')],
     pwpP:[g('lcPwp0'),g('lcPwp1')], sgP:[g('lcSg0'),g('lcSg1')] };
   run(['apiLaporCfgSet',S.nik,cfg]).then(function(){
-    toast('\u2705 Setting laporan tersimpan');
+    if(!silent) toast('\u2705 Setting laporan tersimpan');
   }).catch(function(e){ toast('\u274c '+(e.message||e)); });
+}
+/* Auto-save setting: tiap ada perubahan, simpan otomatis setelah 1.2 detik */
+var _lcSaveT=null;
+function _lcAutoSave(){
+  clearTimeout(_lcSaveT);
+  _lcSaveT=setTimeout(function(){ saveLaporCfg(true); }, 1200);
+}
+function initLaporCfgAutoSave(){
+  var ids=['lcCabang','lcAc','lcAm','lcJml','lcReg','lcFr','lcBjR','lcBjO',
+    'lcPsm0','lcPsm1','lcPsm2','lcPsm3','lcPwp0','lcPwp1','lcSg0','lcSg1'];
+  ids.forEach(function(id){
+    var el=document.getElementById(id);
+    if(el && !el._lcBound){
+      el.addEventListener('input', _lcAutoSave);
+      el.addEventListener('change', _lcAutoSave);
+      el._lcBound=true;
+    }
+  });
 }
 /* ===== Approval Laporan Langsung ===== */
 function loadApprovals(){
