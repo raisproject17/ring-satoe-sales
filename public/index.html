@@ -907,8 +907,9 @@ function loadForm(){
             +'<div class="frow"><div class="lbl"><b>Stock OH</b><span>Oneshoot (Shaped Bottle) — stock on hand</span></div>'
             +'<input type="text" inputmode="numeric" data-k="'+esc(f.key)+'_sisa" value="'+(mv.sisa!=null?mv.sisa:'')+'" placeholder="0"></div>';
         }else{
+          var im=(f.kind==='pct')?'decimal':'numeric';
           h+='<div class="frow"><div class="lbl"><b>'+esc(f.label)+'</b><span>'+esc(sub)+'</span></div>'
-            +'<input type="text" inputmode="numeric" data-k="'+esc(f.key)+'" value="'+(mv.a!=null?mv.a:'')+'" placeholder="0"></div>';
+            +'<input type="text" inputmode="'+im+'" data-k="'+esc(f.key)+'" value="'+(mv.a!=null?mv.a:'')+'" placeholder="0"></div>';
         }
       });
     }else{
