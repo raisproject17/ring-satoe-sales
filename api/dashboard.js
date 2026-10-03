@@ -53,6 +53,13 @@ export async function apiRanking(iso, mode) {
   if (hit) return JSON.parse(hit);
   const rows = mtd ? blocks.filter((b) => b.iso.slice(0, 7) === isoEnd.slice(0, 7) && b.iso <= isoEnd) : [pick];
   const acc = {};
+  // Target FLAT sebulan: ambil dari blok tgl 1 (bukan akumulasi)
+  const firstBlk = mtd && rows.length ? await readBlockS2_(rows[0].row) : null;
+  const flatT = {};
+  if (firstBlk) firstBlk.stores.forEach((s) => {
+    const k = String(s.kode).toUpperCase();
+    flatT[k] = (s.vals.nett || {}).t || 0;
+  });
   for (const b of rows) {
     const blk = await readBlockS2_(b.row);
     const isEnd = (b.iso === isoEnd);
@@ -60,7 +67,7 @@ export async function apiRanking(iso, mode) {
       const k = String(s.kode).toUpperCase();
       if (!acc[k]) acc[k] = { kode: s.kode, nama: s.toko, nettT: 0, nettA: 0, stdA: null, done: false };
       const n = s.vals.nett || {};
-      acc[k].nettT += n.t || 0;
+      acc[k].nettT = mtd ? (flatT[k] || 0) : (acc[k].nettT + (n.t || 0));
       acc[k].nettA += (n.a === null || n.a === undefined) ? 0 : n.a;
       if (isEnd) {
         acc[k].stdA = s.vals.std ? s.vals.std.a : null;
@@ -109,6 +116,15 @@ export async function apiRekap(iso, mode) {
   compKeys.forEach((k) => { byComp[k] = { label: compLabels[k] || k, t: 0, a: 0 }; });
   const rows = mtd ? blocks.filter((b) => b.iso.slice(0, 7) === isoEnd.slice(0, 7) && b.iso <= isoEnd) : [pick];
   const acc = {};
+  // Target FLAT sebulan: ambil dari blok tgl 1 (bukan akumulasi)
+  const firstBlk = mtd && rows.length ? await readBlockS2_(rows[0].row) : null;
+  const flatT = {};
+  if (firstBlk) firstBlk.stores.forEach((s) => {
+    const k = String(s.kode).toUpperCase();
+    flatT[k] = { nett: (s.vals.nett || {}).t || 0, std: (s.vals.std || {}).t || 0 };
+    compKeys.forEach((ck) => { if (!flatT[k][ck]) flatT[k][ck] = (s.vals[ck] || {}).t || 0; });
+  });
+  if (mtd) compKeys.forEach((ck) => { byComp[ck].t = 0; });
   for (const b of rows) {
     const blk = await readBlockS2_(b.row);
     const isEnd = (b.iso === isoEnd);
@@ -116,17 +132,25 @@ export async function apiRekap(iso, mode) {
       const k = String(s.kode).toUpperCase();
       if (!acc[k]) acc[k] = { kode: s.kode, toko: s.toko, done: false, nettT: 0, nettA: 0, stdT: 0, stdA: 0 };
       const n = s.vals.nett || {}, std = s.vals.std || {};
-      acc[k].nettT += n.t || 0;
+      acc[k].nettT = mtd ? ((flatT[k] || {}).nett || 0) : (acc[k].nettT + (n.t || 0));
       acc[k].nettA += (n.a === null || n.a === undefined) ? 0 : n.a;
-      acc[k].stdT += std.t || 0;
+      acc[k].stdT = mtd ? ((flatT[k] || {}).std || 0) : (acc[k].stdT + (std.t || 0));
       acc[k].stdA += (std.a === null || std.a === undefined) ? 0 : std.a;
       compKeys.forEach((ck) => {
         const v = s.vals[ck] || {};
         const val = (v.ttl !== undefined && v.ttl !== null) ? v.ttl : v.a;
         byComp[ck].a += val || 0;
-        byComp[ck].t += v.t || 0;
+        if (!mtd) byComp[ck].t += v.t || 0;
       });
       if (isEnd) acc[k].done = s.report.toUpperCase().indexOf('DONE') >= 0;
+    });
+  }
+  if (mtd && firstBlk) {
+    // byComp target = total flat dari tgl 1
+    compKeys.forEach((ck) => {
+      let t = 0;
+      firstBlk.stores.forEach((s) => { t += ((s.vals[ck] || {}).t || 0); });
+      byComp[ck].t = t;
     });
   }
   const stores = Object.keys(acc).map((k) => acc[k]);
@@ -165,9 +189,18 @@ export async function apiTokoDash(kode, iso, mode) {
     const b2 = await findBlockRow_(TAB.S2, iso);
     if (b2) days.push({ row: b2, iso });
   }
-  // Agregat vals
+  // Agregat vals — target FLAT dari tgl 1 (bukan akumulasi) untuk MTD
   const agg = {};
   let gmCount = 0, gmSum = 0;
+  // Ambil target flat dari blok tgl 1
+  const flatVals = {};
+  if (mtd && days.length) {
+    const b1 = await readBlockS2_(days[0].row);
+    b1.stores.forEach((s) => {
+      if (s.kode.toUpperCase() !== kode) return;
+      Object.keys(s.vals || {}).forEach((k) => { flatVals[k] = (s.vals[k] || {}).t || 0; });
+    });
+  }
   for (const d of days) {
     const blk2 = await readBlockS2_(d.row);
     if (!mtd) tgl = fmtTglID_(blk2.iso);
@@ -184,7 +217,7 @@ export async function apiTokoDash(kode, iso, mode) {
           return;
         }
         if (!agg[k]) agg[k] = { t: 0, a: 0 };
-        agg[k].t += (v.t || 0);
+        agg[k].t = mtd ? (flatVals[k] || 0) : (agg[k].t + (v.t || 0));
         // Untuk MTD: pakai ttl kalau ada, else a
         const av = (v.ttl !== undefined && v.ttl !== null) ? v.ttl : (v.a || 0);
         agg[k].a += av;
