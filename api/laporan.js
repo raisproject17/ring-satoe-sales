@@ -8,7 +8,7 @@ import {
   laporInt_, laporPct_, laporAch_, laporSalam_,
   NAMA_BULAN_FULL_,
   apiGetStores, apiFindToko,
-  collectDay_, beanspotSplit_, laporCfgGet_,
+  collectDay_, beanspotSplit_, laporCfgGetAsync_,
 } from '../lib/utils.js';
 
 /** Bangun teks laporan cabang format WhatsApp. */
@@ -46,7 +46,7 @@ export async function apiLaporGenerate(iso, rpo, soKas) {
     }
     return { ok: false, missing: out };
   }
-  const cfg = laporCfgGet_();
+  const cfg = await laporCfgGetAsync_();
   const p = parts_(iso);
   const dim = new Date(p.y, p.m, 0).getDate();
   const D = Math.min(p.d, dim);
