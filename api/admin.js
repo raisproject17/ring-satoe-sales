@@ -5,6 +5,7 @@ import {
   parseNum_,
   apiGetStores, apiLookupNik,
   requireAdminNik_, laporCfgGet_, laporCfgSet_,
+  approvalList_, approvalAdd_, approvalDel_,
 } from '../lib/utils.js';
 
 /** Setting laporan (admin only untuk tulis) */
@@ -36,13 +37,16 @@ export function apiLaporCfgSet(nik, cfg) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const { action, nik, cfg } = req.body || {};
+  const { action, nik, cfg, kode, iso, shift, alasan, id } = req.body || {};
   try {
     switch (action) {
       case 'cfgget':    return res.status(200).json(apiLaporCfgGet(nik));
       case 'cfgset':    return res.status(200).json(apiLaporCfgSet(nik, cfg));
       case 'stores':    return res.status(200).json(await apiGetStores());
       case 'lookupnik': return res.status(200).json(await apiLookupNik(nik));
+      case 'approval_list': return res.status(200).json(await approvalList_(nik));
+      case 'approval_add':  return res.status(200).json(await approvalAdd_(nik, kode, iso, shift, alasan));
+      case 'approval_del':  return res.status(200).json(await approvalDel_(nik, id));
       default:          return res.status(400).json({ error: 'Unknown action: ' + action });
     }
   } catch (e) {
