@@ -23,7 +23,14 @@ export async function apiStatus(iso) {
     if (dr) {
       const blk = (shift === 2) ? await readBlockS2_(dr) : await readBlockMkt_(tab, dr);
       blk.stores.forEach((s) => {
-        const done = s.report.toUpperCase().indexOf('DONE') >= 0;
+        const hasDone = s.report.toUpperCase().indexOf('DONE') >= 0;
+        // Validasi data: S2 cek nett > 0, S1/S3 cek ada data
+        let valid = true;
+        if (shift === 2) {
+          const nettA = s.vals.nett ? s.vals.nett.a : 0;
+          valid = (nettA || 0) > 0;
+        }
+        const done = hasDone && valid;
         list.push({ kode: s.kode, toko: s.toko, done });
       });
     } else {
@@ -86,7 +93,10 @@ export async function apiRanking(iso, mode) {
       acc[k].nettA = mtd ? (isEnd ? na : acc[k].nettA) : (acc[k].nettA + na);
       if (isEnd) {
         acc[k].stdA = s.vals.std ? s.vals.std.a : null;
-        acc[k].done = s.report.toUpperCase().indexOf('DONE') >= 0;
+        // DONE hanya jika report DONE DAN data valid (nett > 0)
+        const hasDone = s.report.toUpperCase().indexOf('DONE') >= 0;
+        const nettValid = na > 0;
+        acc[k].done = hasDone && nettValid;
       }
     });
   }
@@ -168,7 +178,10 @@ export async function apiRekap(iso, mode) {
         byComp[ck].a += val || 0;
         if (!mtd) byComp[ck].t += v.t || 0;
       });
-      if (isEnd) acc[k].done = s.report.toUpperCase().indexOf('DONE') >= 0;
+      if (isEnd) {
+        const hasDone = s.report.toUpperCase().indexOf('DONE') >= 0;
+        acc[k].done = hasDone && na > 0;
+      }
     });
   }
   if (mtd && firstBlk) {
@@ -239,7 +252,9 @@ export async function apiTokoDash(kode, iso, mode) {
     if (!mtd) tgl = fmtTglID_(blk2.iso);
     blk2.stores.forEach((s) => {
       if (s.kode.toUpperCase() !== kode) return;
-      if (s.report.toUpperCase().indexOf('DONE') >= 0) s2done = true;
+      const hasDone = s.report.toUpperCase().indexOf('DONE') >= 0;
+      const nettA = s.vals.nett ? (s.vals.nett.a || 0) : 0;
+      if (hasDone && nettA > 0) s2done = true;
       Object.keys(s.vals || {}).forEach((k) => {
         const v = s.vals[k] || {};
         if (k === 'gm') {
