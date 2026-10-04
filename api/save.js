@@ -42,12 +42,12 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
   if (shift === 2) {
     sh.setValue(srow, S2_NIK_KASIR + 1, nikKasir);
     sh.setValue(srow, S2_KASIR + 1, kasirNama);
-    // Validasi: SEMUA field S2 tidak boleh 0
-    for (const f of S2_FIELDS) {
-      if (['nett', 'std', 'gm'].includes(f.key)) continue; // divalidasi khusus di bawah
-      const v = parseNum_(actuals[f.key]);
+    // Validasi: field wajib S2 tidak boleh 0 (NETT, STD, GM% divalidasi khusus; PSM/PWP/SERTIS di sini)
+    for (const k of ['psm', 'pwp', 'sertis']) {
+      const f = S2_FIELDS.find(x => x.key === k);
+      const v = parseNum_(actuals[k]);
       if (v === null || v <= 0)
-        throw new Error(f.label + ' wajib diisi dan tidak boleh 0.');
+        throw new Error((f ? f.label : k.toUpperCase()) + ' wajib diisi dan tidak boleh 0.');
     }
     // Validasi: NETT SALES wajib terisi dan tidak boleh 0
     const nettCheck = parseNum_(actuals['nett']);
@@ -105,11 +105,15 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
     sh.setValue(srow, MKT_KASIR_NIK + 1, nikKasir);
     sh.setValue(srow, MKT_KASIR_NAMA + 1, kasirNama);
     const blk = await readBlockMkt_(tab, dateRow);
-    // Validasi: SEMUA komponen tidak boleh 0 (Shift 1 & 3)
+    // Validasi: PSM, PWP, SERTIS, SUEGER tidak boleh 0 (Shift 1 & 3); lainnya optional
+    const mustNZ = ['PSM', 'PWP', 'SERTIS', 'SUEGER'];
     for (const c of blk.comps) {
-      const v = parseNum_(actuals[c.name]);
-      if (v === null || v <= 0)
-        throw new Error(c.name + ' wajib diisi dan tidak boleh 0 (Shift ' + shift + ').');
+      const cn = String(c.name || '').toUpperCase().trim();
+      if (mustNZ.includes(cn)) {
+        const v = parseNum_(actuals[c.name]);
+        if (v === null || v <= 0)
+          throw new Error(c.name + ' wajib diisi dan tidak boleh 0 (Shift ' + shift + ').');
+      }
     }
     for (const c of blk.comps) {
       const a = parseNum_(actuals[c.name]);
