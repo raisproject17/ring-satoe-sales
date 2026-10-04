@@ -51,7 +51,7 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
     if (!gmRaw) throw new Error('GM% wajib diisi (format: xx,xx atau xx.xx).');
     if (gmRaw.indexOf(',') < 0 && gmRaw.indexOf('.') < 0)
       throw new Error('GM% wajib pakai koma/titik (contoh: 12,5 atau 12.5).');
-    // Validasi: NETT SALES tidak boleh kurang dari kemarin (rupiah)
+    // Validasi: NETT SALES tidak boleh kurang dari kemarin DAN tidak boleh > 2x kemarin
     const nettNew = parseNum_(actuals['nett']);
     if (nettNew !== null) {
       const prevRow = await findBlockRow_(TAB.S2, addDaysISO_(iso, -1));
@@ -59,9 +59,14 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
         const psrow = await findStoreRow_(TAB.S2, prevRow, kode);
         if (psrow) {
           const prevNett = parseNum_(await sh.getValue(psrow, S2_COLS.nett.a + 1));
-          if (prevNett !== null && nettNew < prevNett)
-            throw new Error('NETT SALES Rp ' + fmtRibuan_(nettNew) +
-              ' tidak boleh kurang dari kemarin Rp ' + fmtRibuan_(prevNett) + '. Periksa kembali input.');
+          if (prevNett !== null && prevNett > 0) {
+            if (nettNew < prevNett)
+              throw new Error('NETT SALES Rp ' + fmtRibuan_(nettNew) +
+                ' tidak boleh kurang dari kemarin Rp ' + fmtRibuan_(prevNett) + '. Periksa kembali input.');
+            if (nettNew > prevNett * 2)
+              throw new Error('NETT SALES Rp ' + fmtRibuan_(nettNew) +
+                ' tidak boleh lebih dari 2x kemarin (maks Rp ' + fmtRibuan_(prevNett * 2) + '). Periksa kembali input.');
+          }
         }
       }
     }
