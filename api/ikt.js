@@ -9,8 +9,12 @@ import { TAB } from '../lib/config.js';
 
 export default async function handler(req, res) {
   try {
-    const { op, kode, iso } = req.query;
-    if (op === 'ikt') return res.json(await apiIkt(kode, iso));
+    const b = req.body || {};
+    const q = req.query || {};
+    const action = b.action || q.op;
+    const kode = b.kode || q.kode || '';
+    const iso = b.iso || q.iso;
+    if (action === 'ikt') return res.json(await apiIkt(kode, iso));
     return res.status(400).json({ ok: false, error: 'op?' });
   } catch (e) {
     return res.status(500).json({ ok: false, error: String(e.message || e) });
