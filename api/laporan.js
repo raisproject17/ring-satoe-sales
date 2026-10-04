@@ -112,15 +112,16 @@ export async function apiLaporGenerate(iso, rpo, soKas) {
     }
     L.push('');
   }
-  /* INVENTORY (MTD) */
-  let mNettT = 0, mPl = 0, mBr = 0;
-  days.forEach((x) => { mNettT += x.nettT; mPl += x.plA; mBr += x.brA; });
+  /* INVENTORY — budget dari SUM aktual NETT SALES (terbentuk saat toko sudah lapor) */
+  let mPl = 0, mBr = 0;
+  days.forEach((x) => { mPl += x.plA; mBr += x.brA; });
+  const nettAInv = t.nettA; // sum aktual semua toko di tanggal laporan
   L.push('*INVENTORY*');
   L.push('5. PL (PRODUCT LOSS)');
-  L.push('- Budget (0.14%) Rp : ' + laporInt_(-0.0014 * mNettT));
+  L.push('- Budget (0.14%) Rp : ' + laporInt_(-0.0014 * nettAInv));
   L.push('- Total PL aktual : ' + laporInt_(mPl));
   L.push('6. BR (BARANG RUSAK) :');
-  L.push('- Budget (0.02%) Rp : ' + laporInt_(0.0002 * mNettT));
+  L.push('- Budget (0.04%) Rp : ' + laporInt_(0.0004 * nettAInv));
   L.push('- Total BR dari tgl 1 : ' + laporInt_(mBr));
   L.push('');
   /* FOKUS CABANG (harian) */
