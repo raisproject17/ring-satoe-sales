@@ -53,13 +53,26 @@ export async function apiRanking(iso, mode) {
   if (hit) return JSON.parse(hit);
   const rows = mtd ? blocks.filter((b) => b.iso.slice(0, 7) === isoEnd.slice(0, 7) && b.iso <= isoEnd) : [pick];
   const acc = {};
-  // Target FLAT sebulan: ambil dari blok tgl 1 (bukan akumulasi)
-  const firstBlk = mtd && rows.length ? await readBlockS2_(rows[0].row) : null;
+  // Target FLAT: ambil dari tanggal terbaru yang ada targetnya (bukan selalu tgl 1)
+  // Misal target diupdate tgl 4 → jadi acuan untuk tgl 4 dst
   const flatT = {};
-  if (firstBlk) firstBlk.stores.forEach((s) => {
-    const k = String(s.kode).toUpperCase();
-    flatT[k] = (s.vals.nett || {}).t || 0;
-  });
+  if (mtd && rows.length) {
+    for (let ri = rows.length - 1; ri >= 0; ri--) {
+      const blk = await readBlockS2_(rows[ri].row);
+      let found = false;
+      blk.stores.forEach((s) => {
+        const k = String(s.kode).toUpperCase();
+        if (!(k in flatT)) {
+          const t = (s.vals.nett || {}).t || 0;
+          if (t > 0) { flatT[k] = t; found = true; }
+        }
+      });
+      if (Object.keys(flatT).length > 0 && ri === 0) break;
+      // Lanjut cari ke tanggal lebih lama jika belum semua ketemu
+      const allHave = blk.stores.every((s) => String(s.kode).toUpperCase() in flatT);
+      if (allHave) break;
+    }
+  }
   for (const b of rows) {
     const blk = await readBlockS2_(b.row);
     const isEnd = (b.iso === isoEnd);
@@ -118,14 +131,23 @@ export async function apiRekap(iso, mode) {
   compKeys.forEach((k) => { byComp[k] = { label: compLabels[k] || k, t: 0, a: 0 }; });
   const rows = mtd ? blocks.filter((b) => b.iso.slice(0, 7) === isoEnd.slice(0, 7) && b.iso <= isoEnd) : [pick];
   const acc = {};
-  // Target FLAT sebulan: ambil dari blok tgl 1 (bukan akumulasi)
-  const firstBlk = mtd && rows.length ? await readBlockS2_(rows[0].row) : null;
+  // Target FLAT: dari tanggal terbaru yang ada targetnya
   const flatT = {};
-  if (firstBlk) firstBlk.stores.forEach((s) => {
-    const k = String(s.kode).toUpperCase();
-    flatT[k] = { nett: (s.vals.nett || {}).t || 0, std: (s.vals.std || {}).t || 0 };
-    compKeys.forEach((ck) => { if (!flatT[k][ck]) flatT[k][ck] = (s.vals[ck] || {}).t || 0; });
-  });
+  if (mtd && rows.length) {
+    for (let ri = rows.length - 1; ri >= 0; ri--) {
+      const blk = await readBlockS2_(rows[ri].row);
+      blk.stores.forEach((s) => {
+        const k = String(s.kode).toUpperCase();
+        if (!(k in flatT)) {
+          const o = { nett: (s.vals.nett || {}).t || 0, std: (s.vals.std || {}).t || 0 };
+          compKeys.forEach((ck) => { o[ck] = (s.vals[ck] || {}).t || 0; });
+          if (o.nett > 0) flatT[k] = o;
+        }
+      });
+      const allHave = blk.stores.every((s) => String(s.kode).toUpperCase() in flatT);
+      if (allHave) break;
+    }
+  }
   if (mtd) compKeys.forEach((ck) => { byComp[ck].t = 0; });
   for (const b of rows) {
     const blk = await readBlockS2_(b.row);
@@ -196,14 +218,21 @@ export async function apiTokoDash(kode, iso, mode) {
   // Agregat vals — target FLAT dari tgl 1 (bukan akumulasi) untuk MTD
   const agg = {};
   let gmCount = 0, gmSum = 0;
-  // Ambil target flat dari blok tgl 1
+  // Ambil target flat dari tanggal terbaru yang ada targetnya
   const flatVals = {};
   if (mtd && days.length) {
-    const b1 = await readBlockS2_(days[0].row);
-    b1.stores.forEach((s) => {
-      if (s.kode.toUpperCase() !== kode) return;
-      Object.keys(s.vals || {}).forEach((k) => { flatVals[k] = (s.vals[k] || {}).t || 0; });
-    });
+    for (let di = days.length - 1; di >= 0; di--) {
+      const b = await readBlockS2_(days[di].row);
+      let found = false;
+      b.stores.forEach((s) => {
+        if (s.kode.toUpperCase() !== kode) return;
+        Object.keys(s.vals || {}).forEach((k) => {
+          const t = (s.vals[k] || {}).t || 0;
+          if (!(k in flatVals) && t > 0) { flatVals[k] = t; found = true; }
+        });
+      });
+      if (found) break;
+    }
   }
   for (const d of days) {
     const blk2 = await readBlockS2_(d.row);
