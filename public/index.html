@@ -1060,8 +1060,8 @@ function saveForm(){
       var gmRaw=gmInp.value.trim();
       if(!gmRaw){ toast('\\u26a0\\uFE0F GM% wajib diisi (format: xx,xx contoh: 22,50)'); gmInp.focus(); return; }
       if(gmRaw.indexOf(',')<0){ toast('\\u26a0\\uFE0F GM% wajib pakai koma (,) contoh: 22,50'); gmInp.focus(); return; }
-      if(!/,\\d{1,2}$/.test(gmRaw)){ toast('\\u26a0\\uFE0F GM% wajib format xx,xx (contoh: 22,50 bukan 22)'); gmInp.focus(); return; }
-      var gmV=parseFloat(gmRaw.replace(/\\./g,'').replace(',','.'));
+      if(!/,\d{1,2}$/.test(gmRaw)){ toast('\\u26a0\\uFE0F GM% wajib format xx,xx (contoh: 22,50 bukan 22)'); gmInp.focus(); return; }
+      var gmV=parseFloat(gmRaw.replace(/\./g,'').replace(',','.'));
       if(gmV>25){ toast('\\u26a0\\uFE0F GM% maksimal 25,00'); gmInp.focus(); return; }
     }
   }
