@@ -245,6 +245,17 @@
     #scr-dash .card:first-of-type{grid-column:1/-1;}
     #scr-dash .card:last-child{grid-column:1/-1;}
     #scr-app .topbar, #scr-app .card{max-width:800px; margin-left:auto; margin-right:auto;}
+    .iktcard{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px;}
+    .iktcard .lbl{font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px;}
+    .iktcard .big{font-size:22px; font-weight:800; margin-top:4px;}
+    .iktcard .sub{font-size:12px; color:var(--mut); margin-top:4px;}
+    .ikttable{width:100%; border-collapse:collapse; font-size:13px;}
+    .ikttable th, .ikttable td{border:1px solid var(--line); padding:8px 6px; text-align:center;}
+    .ikttable thead th{background:var(--bg2); font-size:12px;}
+    .ikttable td:first-child{text-align:left; font-weight:700;}
+    .ikttable .num{font-weight:700;}
+    .ikttable .neg{color:var(--bad);}
+    .ikttable .pos{color:var(--ok);}
     #scr-app .card{margin-bottom:14px;}
     .chips{grid-template-columns:repeat(5,1fr);}
   }
@@ -400,6 +411,27 @@
   </div>
 
   <!-- ============ SETTING TARGET (admin) ============ -->
+  <div id="scr-perf" class="hide">
+    <div class="topbar">
+      <div class="who"><b>📈 Performance</b><span id="iktSub">IKT — Indikator Kinerja Toko</span></div>
+      <span style="display:inline-flex;gap:8px;align-items:center;"><button class="iconbtn" data-act="theme" title="Pilih tema" aria-label="Pilih tema">🎨</button> <button class="iconbtn hide" data-act="install" title="Install App" aria-label="Install App">📲</button></span>
+      <div class="who" style="text-align:right;"><b id="iktWho" style="font-size:13px;">-</b><span id="iktRole">-</span></div>
+    </div>
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <h2>📊 IKT <span id="iktTglLbl" style="font-weight:400; color:var(--mut); font-size:13px;"></span></h2>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <input type="date" id="iktTgl" style="padding:7px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg);">
+          <button class="btn" onclick="loadIkt()">🔄</button>
+        </div>
+      </div>
+      <div id="iktBody" style="margin-top:12px;"><div class="skel"></div><div class="skel"></div></div>
+    </div>
+    <div class="card hide" id="iktStoresCard">
+      <h2>🏪 Per Toko</h2>
+      <div id="iktStores" style="margin-top:8px;"></div>
+    </div>
+  </div>
   <div id="scr-target" class="hide">
     <div class="card">
       <h2>🎯 Setting Target</h2>
@@ -562,6 +594,7 @@ var API_MAP = {
   'apiRanking':      ['/api/dashboard', 'ranking',   ['iso','mode']],
   'apiRekap':        ['/api/dashboard', 'rekap',     ['iso','mode']],
   'apiTokoDash':     ['/api/dashboard', 'tokodash',  ['kode','iso','mode']],
+  'apiIkt':          ['/api/ikt',       'ikt',       ['kode','iso']],
   'apiTren':         ['/api/dashboard', 'tren',      ['kode','n']],
   'apiGetBlock':     ['/api/input',     'getblock',  ['shift','iso','kode']],
   'apiNotif':        ['/api/input',     'notif',     ['nik']],
@@ -727,9 +760,9 @@ function logout(){
   showScreen('scr-login');
 }
 function navItems(){
-  if(S.role==='korwil') return [['dash','📊','Dashboard'],['lapor','📄','Lap. Cabang'],['logout','🚪','Keluar']];
-  if(S.role==='admin') return [['input','📝','INPUT LAPORAN'],['dash','📊','Dashboard'],['target','🎯','Target'],['setting','\u2699\ufe0f','Setting'],['lapor','📄','Lap. Cabang'],['logout','🚪','Keluar']];
-  return [['input','📝','INPUT LAPORAN'],['dash','📊','Dashboard'],['logout','🚪','Keluar']];
+  if(S.role==='korwil') return [['dash','📊','Dashboard'],['perf','📈','Performance'],['lapor','📄','Lap. Cabang'],['logout','🚪','Keluar']];
+  if(S.role==='admin') return [['input','📝','INPUT LAPORAN'],['dash','📊','Dashboard'],['perf','📈','Performance'],['target','🎯','Target'],['setting','\u2699\ufe0f','Setting'],['lapor','📄','Lap. Cabang'],['logout','🚪','Keluar']];
+  return [['input','📝','INPUT LAPORAN'],['dash','📊','Dashboard'],['perf','📈','Performance'],['logout','🚪','Keluar']];
 }
 function renderNav(active){
   var nb=document.getElementById('navbar');
@@ -744,6 +777,7 @@ function navGo(v, shift){
   renderNav(v);
   if(v==='input'){ showScreen('scr-app'); if(shift) setShift(shift); }
   else if(v==='dash'){ showScreen('scr-dash'); loadDash(); }
+  else if(v==='perf'){ var d=document.getElementById('iktTgl'); if(!d.value) d.value=todayISO(); showScreen('scr-perf'); loadIkt(); }
   else if(v==='target'){ var d=document.getElementById('tgtTgl'); if(!d.value) d.value=todayISO(); showScreen('scr-target'); loadTarget(); }
   else if(v==='setting'){ showScreen('scr-admin'); initAdmin(); }
   else if(v==='lapor'){ openLaporan(); }
@@ -1320,6 +1354,65 @@ function loadBeanspot(){
 }
 
 /* ---------- setting target ---------- */
+/* ==================== PERFORMANCE / IKT ==================== */
+function loadIkt(){
+  var iso=document.getElementById('iktTgl').value||todayISO();
+  var kode=(S.role==='toko')?S.kode:'';
+  document.getElementById('iktTglLbl').textContent='per '+fmtTglID_(iso);
+  document.getElementById('iktWho').textContent=S.nama||S.kode||'-';
+  document.getElementById('iktRole').textContent=S.role==='toko'?(S.namaToko||''):(S.role==='korwil'?'Korwil':'Admin');
+  document.getElementById('iktSub').textContent=(S.role==='toko')?('IKT — '+(S.namaToko||S.kode)):'IKT — Gabungan Semua Toko';
+  var body=document.getElementById('iktBody');
+  body.innerHTML='<div class="skel"></div><div class="skel"></div>';
+  document.getElementById('iktStoresCard').classList.add('hide');
+  run(['apiIkt',kode,iso]).then(function(d){
+    if(!d||!d.ok){ body.innerHTML='<p class="hint">Gagal memuat data.</p>'; return; }
+    var TS=d.targetNett||0, AS=d.aktualNett||0, TG=d.targetGm||0, AG=d.aktualGm||0;
+    var TGR=TS*TG/100, AGR=AS*AG/100;
+    var achS=TS>0?AS/TS*100:0, achG=TG>0?AG/TG*100:0, achGR=TGR>0?AGR/TGR*100:0;
+    var tf=d.timeFactor||0;
+    // Best Estimate: kebutuhan nett sales untuk capai GM Rp target
+    var needSales=(TG>0&&achG<100&&AG>0)?TGR/(AG/100):TS;
+    var short=needSales-AS;
+    var h='';
+    // Kartu ringkasan
+    h+='<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px;">';
+    h+='<div class="iktcard"><div class="lbl">⏱ Time Factor</div><div class="big">'+tf.toFixed(2)+'</div><div class="sub">('+(d.tanggal-1)+' ÷ '+d.dim+' hari)</div></div>';
+    h+='<div class="iktcard"><div class="lbl">🎯 Achieve Nett</div><div class="big">'+achS.toFixed(1)+'%</div><div class="sub">'+ribuan(AS)+' / '+ribuan(TS)+'</div></div>';
+    h+='<div class="iktcard"><div class="lbl">📊 Achieve GM%</div><div class="big">'+achG.toFixed(1)+'%</div><div class="sub">'+String(AG).replace('.',',')+'% / '+String(TG).replace('.',',')+'%</div></div>';
+    h+='</div>';
+    // Tabel IKT
+    h+='<div class="tablewrap"><table class="ikttable"><thead><tr><th>Indikator</th><th>Target</th><th>Aktual</th><th>Achieve</th><th>Gap</th></tr></thead><tbody>';
+    h+='<tr><td>NETT SALES</td><td class="num">'+ribuan(TS)+'</td><td class="num">'+ribuan(AS)+'</td>'
+      +'<td class="num">'+achS.toFixed(1)+'%</td><td class="num '+(AS-TS<0?'neg':'pos')+'">'+ribuan(AS-TS)+'</td></tr>';
+    var gapG=AG-TG;
+    h+='<tr><td>GM %</td><td class="num">'+String(TG).replace('.',',')+'%</td><td class="num">'+String(AG).replace('.',',')+'%</td>'
+      +'<td class="num">'+achG.toFixed(1)+'%</td><td class="num '+(gapG<0?'neg':'pos')+'">'+(gapG>=0?'+':'')+gapG.toFixed(2).replace('.',',')+'%</td></tr>';
+    h+='<tr><td>GM RP <small class="hint">(auto)</small></td><td class="num">'+ribuan(TGR)+'</td><td class="num">'+ribuan(AGR)+'</td>'
+      +'<td class="num">'+achGR.toFixed(1)+'%</td><td class="num '+(AGR-TGR<0?'neg':'pos')+'">'+ribuan(AGR-TGR)+'</td></tr>';
+    h+='</tbody></table></div>';
+    // Best Estimate
+    if(needSales>0){
+      h+='<div class="iktcard" style="margin-top:12px;"><div class="lbl">🔮 Best Estimate</div>'
+        +'<div class="big" style="font-size:18px;">'+ribuan(needSales)+'</div>'
+        +'<div class="sub">Nett sales dibutuhkan'+(short>0?' · kurang '+ribuan(short):' · target tercapai ✓')+'</div></div>';
+    }
+    body.innerHTML=h;
+    // Per-toko untuk admin/korwil
+    if(d.stores&&d.stores.length){
+      var sh='';
+      sh+='<div class="tablewrap"><table class="ikttable"><thead><tr><th>Toko</th><th>Target Nett</th><th>Aktual Nett</th><th>Ach%</th><th>GM% T/A</th></tr></thead><tbody>';
+      d.stores.forEach(function(s){
+        var a=s.targetNett>0?s.aktualNett/s.targetNett*100:0;
+        sh+='<tr><td>'+esc(s.kode)+'</td><td class="num">'+ribuan(s.targetNett)+'</td><td class="num">'+ribuan(s.aktualNett)+'</td>'
+          +'<td class="num">'+a.toFixed(1)+'%</td><td class="num">'+String(s.targetGm).replace('.',',')+' / '+String(s.aktualGm).replace('.',',')+'</td></tr>';
+      });
+      sh+='</tbody></table></div>';
+      document.getElementById('iktStores').innerHTML=sh;
+      document.getElementById('iktStoresCard').classList.remove('hide');
+    }
+  }).catch(function(e){ body.innerHTML='<p class="hint">Gagal: '+esc(e.message||e)+'</p>'; });
+}
 function loadTarget(){
   var iso=document.getElementById('tgtTgl').value||todayISO();
   var tb=document.querySelector('#tgtTbl tbody');
