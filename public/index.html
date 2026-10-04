@@ -1355,6 +1355,10 @@ function loadBeanspot(){
 
 /* ---------- setting target ---------- */
 /* ==================== PERFORMANCE / IKT ==================== */
+function fmtGm(v){
+  var n=parseFloat(v)||0;
+  return n.toFixed(2).replace('.',',');
+}
 function fmtTglID(iso){
   var p=String(iso||'').split('-'); if(p.length<3) return iso||'';
   var bln=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
@@ -1404,7 +1408,7 @@ function loadIkt(){
     h+='<tr><td>NETT SALES</td><td class="num">'+ribuan(TS)+'</td><td class="num">'+ribuan(AS)+'</td>'
       +'<td class="num">'+achS.toFixed(1)+'%</td><td class="num '+(AS-TS<0?'neg':'pos')+'">'+ribuan(AS-TS)+'</td></tr>';
     var gapG=AG-TG;
-    h+='<tr><td>GM %</td><td class="num">'+String(TG).replace('.',',')+'%</td><td class="num">'+String(AG).replace('.',',')+'%</td>'
+    h+='<tr><td>GM %</td><td class="num">'+fmtGm(TG)+'%</td><td class="num">'+fmtGm(AG)+'%</td>'
       +'<td class="num">'+achG.toFixed(1)+'%</td><td class="num '+(gapG<0?'neg':'pos')+'">'+(gapG>=0?'+':'')+gapG.toFixed(2).replace('.',',')+'%</td></tr>';
     h+='<tr><td>GM RP <small class="hint">(auto)</small></td><td class="num">'+ribuan(TGR)+'</td><td class="num">'+ribuan(AGR)+'</td>'
       +'<td class="num">'+achGR.toFixed(1)+'%</td><td class="num '+(AGR-TGR<0?'neg':'pos')+'">'+ribuan(AGR-TGR)+'</td></tr>';
@@ -1416,7 +1420,7 @@ function loadIkt(){
         +'<table class="ikttable" style="margin-top:8px;"><tbody>'
         +'<tr><td style="text-align:left;font-weight:400">Nett sales dibutuhkan</td><td class="num" id="iktBENeed">'+ribuan(needSales)+'</td></tr>'
         +'<tr><td style="text-align:left;font-weight:400">GM% skenario <small class="hint">(bisa edit)</small></td>'
-        +'<td><input id="iktSken" inputmode="decimal" value="'+String(AG).replace('.',',')+'" placeholder="0,00" style="width:110px;padding:7px;text-align:right;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--fg);"></td></tr>'
+        +'<td><input id="iktSken" inputmode="decimal" value="'+fmtGm(AG)+'" placeholder="0,00" style="width:110px;padding:7px;text-align:right;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--fg);"></td></tr>'
         +'<tr><td style="text-align:left;font-weight:400">GM Rp <small class="hint">(auto)</small></td><td class="num" id="iktBEGmRp">'+ribuan(gmRpBE)+'</td></tr>'
         +'</tbody></table>'
         +'<div class="sub" id="iktBESub" style="margin-top:6px"></div>'
@@ -1425,7 +1429,7 @@ function loadIkt(){
       setTimeout(function(){
         var sub=document.getElementById('iktBESub');
         if(sub){
-          if(focusGM&&gmSken>0) sub.textContent=ribuan(TGR)+' ÷ '+String(gmSken).replace('.',',')+'% = '+ribuan(needSales);
+          if(focusGM&&gmSken>0) sub.textContent=ribuan(TGR)+' ÷ '+fmtGm(gmSken)+'% = '+ribuan(needSales);
           else if(focusGM) sub.textContent='Isi GM% skenario dulu untuk menghitung.';
           else sub.textContent='GM% on track — pakai target nett sales awal.';
         }
@@ -1439,7 +1443,7 @@ function loadIkt(){
             var nd=document.getElementById('iktBENeed'); if(nd) nd.textContent=ns>0?ribuan(ns):'-';
             var gr2=document.getElementById('iktBEGmRp'); if(gr2) gr2.textContent=ribuan(gr);
             if(sub){
-              if(focusGM&&v>0) sub.textContent=ribuan(TGR)+' ÷ '+String(v).replace('.',',')+'% = '+ribuan(ns);
+              if(focusGM&&v>0) sub.textContent=ribuan(TGR)+' ÷ '+fmtGm(v)+'% = '+ribuan(ns);
               else if(focusGM) sub.textContent='Isi GM% skenario dulu untuk menghitung.';
             }
           });
