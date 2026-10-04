@@ -42,9 +42,22 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
   if (shift === 2) {
     sh.setValue(srow, S2_NIK_KASIR + 1, nikKasir);
     sh.setValue(srow, S2_KASIR + 1, kasirNama);
-    // Validasi: STD tidak boleh lebih dari 3 digit
+    // Validasi: SEMUA field S2 tidak boleh 0
+    for (const f of S2_FIELDS) {
+      if (['nett', 'std', 'gm'].includes(f.key)) continue; // divalidasi khusus di bawah
+      const v = parseNum_(actuals[f.key]);
+      if (v === null || v <= 0)
+        throw new Error(f.label + ' wajib diisi dan tidak boleh 0.');
+    }
+    // Validasi: NETT SALES wajib terisi dan tidak boleh 0
+    const nettCheck = parseNum_(actuals['nett']);
+    if (nettCheck === null || nettCheck <= 0)
+      throw new Error('NETT SALES wajib diisi dan tidak boleh 0.');
+    // Validasi: STD wajib terisi, tidak boleh 0, max 999
     const stdNew = parseNum_(actuals['std']);
-    if (stdNew !== null && stdNew >= 1000)
+    if (stdNew === null || stdNew <= 0)
+      throw new Error('STD wajib diisi dan tidak boleh 0.');
+    if (stdNew >= 1000)
       throw new Error('STD tidak boleh lebih dari 3 digit (maks 999).');
     // Validasi: GM% wajib pakai koma (,), format xx,xx, max 25,00
     if (!gmRaw) throw new Error('GM% wajib diisi (format: xx,xx contoh: 22,50).');
@@ -92,15 +105,11 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
     sh.setValue(srow, MKT_KASIR_NIK + 1, nikKasir);
     sh.setValue(srow, MKT_KASIR_NAMA + 1, kasirNama);
     const blk = await readBlockMkt_(tab, dateRow);
-    // Validasi: PSM, PWP, SERTIS, SUEGER tidak boleh 0 (Shift 1 & 3)
-    const mustNonZero = ['PSM', 'PWP', 'SERTIS', 'SUEGER'];
+    // Validasi: SEMUA komponen tidak boleh 0 (Shift 1 & 3)
     for (const c of blk.comps) {
-      const cn = String(c.name || '').toUpperCase().trim();
-      if (mustNonZero.includes(cn)) {
-        const v = parseNum_(actuals[c.name]);
-        if (v === null || v <= 0)
-          throw new Error(c.name + ' wajib diisi dan tidak boleh 0 (Shift ' + shift + ').');
-      }
+      const v = parseNum_(actuals[c.name]);
+      if (v === null || v <= 0)
+        throw new Error(c.name + ' wajib diisi dan tidak boleh 0 (Shift ' + shift + ').');
     }
     for (const c of blk.comps) {
       const a = parseNum_(actuals[c.name]);
