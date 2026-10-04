@@ -29,21 +29,25 @@ async function apiIkt(kode, iso) {
   const D = Math.min(p.d, dim);
   const maps = { s2: await blockMap_(TAB.S2) };
 
-  // Blok tanggal 1 (untuk target flat)
-  const firstIso = iso_([p.y, p.m, 1]);
-  const dr1 = maps.s2[firstIso];
+  // Target dari tanggal terbaru yang ada (bukan selalu tgl 1)
   const flatT = {};
-  if (dr1) {
-    const blk1 = await readBlockS2_(dr1);
-    for (const s of blk1.stores) {
+  for (let fd = D; fd >= 1; fd--) {
+    const fIso = iso_([p.y, p.m, fd]);
+    const dr = maps.s2[fIso];
+    if (!dr) continue;
+    const blk = await readBlockS2_(dr);
+    let found = false;
+    for (const s of blk.stores) {
       const k = String(s.kode || '').trim().toUpperCase();
-      if (!kode || k === String(kode).trim().toUpperCase()) {
-        flatT[k] = {
-          nett: num0_(s.vals.nett.t),
-          gm: num0_(s.vals.gm.t),
-        };
+      if ((!kode || k === String(kode).trim().toUpperCase()) && !(k in flatT)) {
+        const nt = num0_(s.vals.nett.t);
+        if (nt > 0) {
+          flatT[k] = { nett: nt, gm: num0_(s.vals.gm.t) };
+          found = true;
+        }
       }
     }
+    if (found) break;
   }
 
   // Cari tanggal terakhir yang ada datanya (untuk aktual & Time Factor)
