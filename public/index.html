@@ -1024,23 +1024,28 @@ function saveForm(){
   var iso=document.getElementById('inTgl').value || todayISO();
   var nikKasir=document.getElementById('inNikKasir').value.trim();
   if(!nikKasir){ toast('Isi NIK kasir dulu'); return; }
-  /* Validasi: tidak boleh kosong dan tidak boleh 0 (semua shift) */
+  /* Validasi: tidak boleh kosong; field wajib tidak boleh 0 */
+  // Field wajib tidak boleh 0: S2(nett,std,psm,pwp,sertis) S1/S3(psm,pwp,sertis,sueger)
+  var mustNonZero = (S.shift===2)
+    ? ['nett','std','psm','pwp','sertis','suegerr']
+    : ['psm','pwp','sertis','sueger'];
   var invalidFound=false;
   var invalidMsg='';
   document.querySelectorAll('#formBody input').forEach(function(i){
     var vv=i.value.trim();
+    var k=i.getAttribute('data-k')||'';
     if(vv===''){ invalidFound=true; invalidMsg='Input tidak boleh kosong'; i.style.borderColor='var(--bad)'; }
-    else {
-      var k=i.getAttribute('data-k')||'';
+    else if(k!=='gm' && mustNonZero.indexOf(k)>=0){
       var num=parseFloat(vv.replace(/\./g,'').replace(',','.'));
-      if(k!=='gm' && !isNaN(num) && num===0){
+      if(!isNaN(num) && num<=0){
         invalidFound=true;
         var lbl=i.closest('.frow');
         var lblTxt=(lbl&&lbl.querySelector('.lbl b'))?lbl.querySelector('.lbl b').textContent:k;
-        invalidMsg=lblTxt+' tidak boleh 0';
+        invalidMsg=lblTxt+' wajib diisi dan tidak boleh 0';
         i.style.borderColor='var(--bad)';
       } else { i.style.borderColor=''; }
     }
+    else { i.style.borderColor=''; }
   });
   if(invalidFound){ toast('\u26a0\uFE0F '+invalidMsg); return; }
   /* Validasi khusus Shift 2 */
