@@ -651,7 +651,7 @@ function todayISO(){
   return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
 }
 function showScreen(id){
-  ['scr-login','scr-lapor','scr-app','scr-admin','scr-target','scr-dash'].forEach(function(x){
+  ['scr-login','scr-lapor','scr-app','scr-admin','scr-target','scr-dash','scr-perf'].forEach(function(x){
     var el=document.getElementById(x);
     if(el) el.classList.toggle('hide', x!==id);
   });
