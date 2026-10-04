@@ -245,7 +245,10 @@
     #scr-dash .card:first-of-type{grid-column:1/-1;}
     #scr-dash .card:last-child{grid-column:1/-1;}
     #scr-app .topbar, #scr-app .card{max-width:800px; margin-left:auto; margin-right:auto;}
-    .iktcard{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px;}
+    .iktcard{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px 16px; position:relative; overflow:hidden;}
+    .iktcard::before{content:''; position:absolute; top:0; left:0; right:0; height:4px; background:var(--acc);}
+    .iktcard.warn::before{background:var(--bad);}
+    .iktcard .lbl{font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.8px; font-weight:600;}
     .iktcard .lbl{font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px;}
     .iktcard .big{font-size:22px; font-weight:800; margin-top:4px; line-height:1.2;}
     .iktcard .lbl{white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -1415,9 +1418,9 @@ function loadIkt(){
     else{ needTxt=ribuan(short/sisaHari)+'/hari'; needSub=ribuan(short)+' ÷ '+sisaHari+' hari'; }
     // Kartu ringkasan (sesuai referensi)
     h+='<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px;">';
-    h+='<div class="iktcard"><div class="lbl">⏱ Time Factor</div><div class="big">'+(tf*100).toFixed(1)+'%</div><div class="sub">'+d.tanggal+'÷'+d.dim+' hari</div></div>';
-    h+='<div class="iktcard"><div class="lbl">🎯 Fokus</div><div class="big" style="font-size:15px;line-height:1.25;">'+fokusTxt+'</div><div class="sub">'+fokusSub+'</div></div>';
-    h+='<div class="iktcard"><div class="lbl">💰 Butuh/Hari</div><div class="big '+needCls+'" style="font-size:15px;line-height:1.25;word-break:break-all;">'+needTxt+'</div><div class="sub">'+needSub+'</div></div>';
+    h+='<div class="iktcard"><div class="lbl">⏱ Time Factor</div><div class="big">'+(tf*100).toFixed(1)+'%</div><div class="sub">'+d.tanggal+' ÷ '+d.dim+' hari</div></div>';
+    h+='<div class="iktcard"><div class="lbl">🎯 Fokus</div><div class="big" style="font-size:16px;line-height:1.3;">'+fokusTxt+'</div><div class="sub">'+fokusSub+'</div></div>';
+    h+='<div class="iktcard'+(short>0?' warn':'')+'"><div class="lbl">💰 Butuh / Hari</div><div class="big '+needCls+'" style="font-size:16px;line-height:1.3;">'+needTxt+'</div><div class="sub">'+needSub+'</div></div>';
     h+='</div>';
     // Tabel IKT
     h+='<div class="tablewrap"><table class="ikttable"><thead><tr><th>Indikator</th><th>Target</th><th>Aktual</th><th>Achieve</th><th>Gap</th></tr></thead><tbody>';
@@ -1441,19 +1444,34 @@ function loadIkt(){
         +'</tbody></table>'
         +'<div class="sub" id="iktBESub" style="margin-top:6px"></div>'
         +'</div>';
-      // Set formula awal
+      // Skenario GM%: autosave ke localStorage per toko+tanggal
+      var skenKey='ikt_sken_'+(kode||'all')+'_'+iso;
+      try{
+        var savedSken=localStorage.getItem(skenKey);
+        if(savedSken) gmSken=parseFloat(savedSken)||AG;
+      }catch(e){}
       setTimeout(function(){
         var sub=document.getElementById('iktBESub');
+        var skenEl=document.getElementById('iktSken');
+        // Set nilai awal dari saved atau aktual
+        if(skenEl && gmSken!==AG){
+          skenEl.value=fmtGm(gmSken);
+          // Recalc awal dengan saved value
+          var ns0=focusGM?(gmSken>0?TGR/(gmSken/100):0):TS;
+          var nd0=document.getElementById('iktBENeed'); if(nd0) nd0.textContent=ns0>0?ribuan(ns0):'-';
+          var gr0=document.getElementById('iktBEGmRp'); if(gr0) gr0.textContent=ribuan(ns0*gmSken/100);
+        }
         if(sub){
           if(focusGM&&gmSken>0) sub.textContent=ribuan(TGR)+' ÷ '+fmtGm(gmSken)+'% = '+ribuan(needSales);
           else if(focusGM) sub.textContent='Isi GM% skenario dulu untuk menghitung.';
           else sub.textContent='GM% on track — pakai target nett sales awal.';
         }
-        // Recalc saat skenario diubah
-        var skenEl=document.getElementById('iktSken');
+        // Recalc + autosave saat skenario diubah
         if(skenEl){
           skenEl.addEventListener('input', function(){
             var v=parseFloat(String(skenEl.value).replace(',','.'))||0;
+            try{ localStorage.setItem(skenKey, String(v)); }catch(e){}
+            // Logika: GM%<100% → kejar GM Rp (naikkan target nett); GM%>=100% → fokus kekurangan nett
             var ns=focusGM?(v>0?TGR/(v/100):0):TS;
             var gr=ns*v/100;
             var nd=document.getElementById('iktBENeed'); if(nd) nd.textContent=ns>0?ribuan(ns):'-';
@@ -1461,6 +1479,7 @@ function loadIkt(){
             if(sub){
               if(focusGM&&v>0) sub.textContent=ribuan(TGR)+' ÷ '+fmtGm(v)+'% = '+ribuan(ns);
               else if(focusGM) sub.textContent='Isi GM% skenario dulu untuk menghitung.';
+              else sub.textContent='GM% on track — pakai target nett sales awal.';
             }
           });
         }
