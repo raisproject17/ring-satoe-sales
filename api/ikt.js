@@ -59,6 +59,8 @@ async function apiIkt(kode, iso) {
     }
   }
 
+  // Sanitasi GM%: nilai > 100 dianggap data korup → 0
+  const saneGm = (v) => (v > 0 && v <= 100) ? v : 0;
   // Gabungkan: untuk tiap toko, atau sum untuk cabang
   const stores = [];
   let sumT = 0, sumA = 0, sumGmT = 0, sumGmA = 0, cntGmT = 0, cntGmA = 0;
@@ -67,11 +69,12 @@ async function apiIkt(kode, iso) {
   for (const k of allKodes) {
     const t = flatT[k] || { nett: 0, gm: 0 };
     const a = akt[k] || { nett: 0, gm: 0 };
-    stores.push({ kode: k, targetNett: t.nett, aktualNett: a.nett, targetGm: t.gm, aktualGm: a.gm });
+    const tg = saneGm(t.gm), ag = saneGm(a.gm);
+    stores.push({ kode: k, targetNett: t.nett, aktualNett: a.nett, targetGm: tg, aktualGm: ag });
     sumT += t.nett; sumA += a.nett;
     // GM% rata-rata tertimbang by nett sales
-    if (t.gm > 0 && t.nett > 0) { sumGmT += t.gm * t.nett; cntGmT += t.nett; }
-    if (a.gm > 0 && a.nett > 0) { sumGmA += a.gm * a.nett; cntGmA += a.nett; }
+    if (tg > 0 && t.nett > 0) { sumGmT += tg * t.nett; cntGmT += t.nett; }
+    if (ag > 0 && a.nett > 0) { sumGmA += ag * a.nett; cntGmA += a.nett; }
   }
 
   const avgGmT = cntGmT > 0 ? sumGmT / cntGmT : 0;
@@ -89,8 +92,8 @@ async function apiIkt(kode, iso) {
     // Untuk toko tunggal atau gabungan
     targetNett: kode ? (flatT[String(kode).toUpperCase()]?.nett || 0) : sumT,
     aktualNett: kode ? (akt[String(kode).toUpperCase()]?.nett || 0) : sumA,
-    targetGm: kode ? (flatT[String(kode).toUpperCase()]?.gm || 0) : avgGmT,
-    aktualGm: kode ? (akt[String(kode).toUpperCase()]?.gm || 0) : avgGmA,
+    targetGm: kode ? saneGm(flatT[String(kode).toUpperCase()]?.gm || 0) : avgGmT,
+    aktualGm: kode ? saneGm(akt[String(kode).toUpperCase()]?.gm || 0) : avgGmA,
     stores: kode ? undefined : stores.sort((a, b) => a.kode.localeCompare(b.kode)),
   };
 }
