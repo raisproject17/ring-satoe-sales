@@ -248,6 +248,12 @@
     .iktcard{background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px;}
     .iktcard .lbl{font-size:11px; color:var(--mut); text-transform:uppercase; letter-spacing:.5px;}
     .iktcard .big{font-size:22px; font-weight:800; margin-top:4px;}
+    @media(max-width:600px){
+      .iktcard{padding:10px 8px;}
+      .iktcard .big{font-size:16px;}
+      .iktcard .lbl{font-size:10px;}
+      .iktcard .sub{font-size:11px;}
+    }
     .iktcard .sub{font-size:12px; color:var(--mut); margin-top:4px;}
     .ikttable{width:100%; border-collapse:collapse; font-size:13px;}
     .ikttable th, .ikttable td{border:1px solid var(--line); padding:8px 6px; text-align:center;}
@@ -1357,7 +1363,13 @@ function loadBeanspot(){
 /* ==================== PERFORMANCE / IKT ==================== */
 function fmtGm(v){
   var n=parseFloat(v)||0;
-  return n.toFixed(2).replace('.',',');
+  // Max 3 desimal, min 2 desimal: 20.5 -> 20,50 | 20.5678 -> 20,568
+  var r=Math.round(n*1000)/1000;
+  var s=r.toFixed(3).replace('.',',');
+  // Hapus nol trailing tapi sisakan min 2 desimal
+  s=s.replace(/0$/, '');
+  if(/,\d$/.test(s)) s+='0';
+  return s;
 }
 function fmtTglID(iso){
   var p=String(iso||'').split('-'); if(p.length<3) return iso||'';
@@ -1398,7 +1410,7 @@ function loadIkt(){
     else if(sisaHari<=0){ needTxt=ribuan(short); needSub='tidak ada sisa hari!'; needCls='neg'; }
     else{ needTxt=ribuan(short/sisaHari)+'/hari'; needSub=ribuan(short)+' ÷ '+sisaHari+' hari'; }
     // Kartu ringkasan (sesuai referensi)
-    h+='<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px;">';
+    h+='<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px;">';
     h+='<div class="iktcard"><div class="lbl">⏱ Time Factor</div><div class="big">'+(tf*100).toFixed(1)+'%</div><div class="sub">'+d.tanggal+' ÷ '+d.dim+' hari</div></div>';
     h+='<div class="iktcard"><div class="lbl">🎯 Fokus</div><div class="big" style="font-size:18px;">'+fokusTxt+'</div><div class="sub">'+fokusSub+'</div></div>';
     h+='<div class="iktcard"><div class="lbl">💰 Butuh / Hari</div><div class="big '+needCls+'" style="font-size:18px;">'+needTxt+'</div><div class="sub">'+needSub+'</div></div>';
@@ -1409,7 +1421,7 @@ function loadIkt(){
       +'<td class="num">'+achS.toFixed(1)+'%</td><td class="num '+(AS-TS<0?'neg':'pos')+'">'+ribuan(AS-TS)+'</td></tr>';
     var gapG=AG-TG;
     h+='<tr><td>GM %</td><td class="num">'+fmtGm(TG)+'%</td><td class="num">'+fmtGm(AG)+'%</td>'
-      +'<td class="num">'+achG.toFixed(1)+'%</td><td class="num '+(gapG<0?'neg':'pos')+'">'+(gapG>=0?'+':'')+gapG.toFixed(2).replace('.',',')+'%</td></tr>';
+      +'<td class="num">'+achG.toFixed(1)+'%</td><td class="num '+(gapG<0?'neg':'pos')+'">'+(gapG>=0?'+':'')+fmtGm(gapG)+'%</td></tr>';
     h+='<tr><td>GM RP <small class="hint">(auto)</small></td><td class="num">'+ribuan(TGR)+'</td><td class="num">'+ribuan(AGR)+'</td>'
       +'<td class="num">'+achGR.toFixed(1)+'%</td><td class="num '+(AGR-TGR<0?'neg':'pos')+'">'+ribuan(AGR-TGR)+'</td></tr>';
     h+='</tbody></table></div>';
