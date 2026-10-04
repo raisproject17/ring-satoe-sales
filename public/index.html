@@ -1381,11 +1381,23 @@ function loadIkt(){
     var needSales=(TG>0&&achG<100&&AG>0)?TGR/(AG/100):TS;
     var short=needSales-AS;
     var h='';
-    // Kartu ringkasan
+    var focusGM=(TG>0&&achG<100);
+    var fokusTxt=focusGM?'Kejar GM Rp':'Kekurangan Nett Sales';
+    var fokusSub='GM% achieve '+achG.toFixed(1)+'%'+(focusGM?' < 100%':' ✓');
+    var gmSken=AG; // default = aktual, bisa diubah via input di BE
+    var needSales=focusGM?(gmSken>0?TGR/(gmSken/100):0):TS;
+    var short=needSales-AS;
+    var sisaHari=d.dim-d.tanggal;
+    var needTxt, needSub, needCls='';
+    if(short<=0&&needSales>0){ needTxt='Target tercapai ✓'; needSub='tidak ada kekurangan'; needCls='pos'; }
+    else if(needSales<=0){ needTxt='-'; needSub='isi target & GM% dulu'; }
+    else if(sisaHari<=0){ needTxt=ribuan(short); needSub='tidak ada sisa hari!'; needCls='neg'; }
+    else{ needTxt=ribuan(short/sisaHari)+'/hari'; needSub=ribuan(short)+' ÷ '+sisaHari+' hari'; }
+    // Kartu ringkasan (sesuai referensi)
     h+='<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px;">';
-    h+='<div class="iktcard"><div class="lbl">⏱ Time Factor</div><div class="big">'+tf.toFixed(2)+'</div><div class="sub">('+d.tanggal+' ÷ '+d.dim+' hari)</div></div>';
-    h+='<div class="iktcard"><div class="lbl">🎯 Achieve Nett</div><div class="big">'+achS.toFixed(1)+'%</div><div class="sub">'+ribuan(AS)+' / '+ribuan(TS)+'</div></div>';
-    h+='<div class="iktcard"><div class="lbl">📊 Achieve GM%</div><div class="big">'+achG.toFixed(1)+'%</div><div class="sub">'+String(AG).replace('.',',')+'% / '+String(TG).replace('.',',')+'%</div></div>';
+    h+='<div class="iktcard"><div class="lbl">⏱ Time Factor</div><div class="big">'+(tf*100).toFixed(1)+'%</div><div class="sub">'+d.tanggal+' ÷ '+d.dim+' hari</div></div>';
+    h+='<div class="iktcard"><div class="lbl">🎯 Fokus</div><div class="big" style="font-size:18px;">'+fokusTxt+'</div><div class="sub">'+fokusSub+'</div></div>';
+    h+='<div class="iktcard"><div class="lbl">💰 Butuh / Hari</div><div class="big '+needCls+'" style="font-size:18px;">'+needTxt+'</div><div class="sub">'+needSub+'</div></div>';
     h+='</div>';
     // Tabel IKT
     h+='<div class="tablewrap"><table class="ikttable"><thead><tr><th>Indikator</th><th>Target</th><th>Aktual</th><th>Achieve</th><th>Gap</th></tr></thead><tbody>';
@@ -1397,28 +1409,42 @@ function loadIkt(){
     h+='<tr><td>GM RP <small class="hint">(auto)</small></td><td class="num">'+ribuan(TGR)+'</td><td class="num">'+ribuan(AGR)+'</td>'
       +'<td class="num">'+achGR.toFixed(1)+'%</td><td class="num '+(AGR-TGR<0?'neg':'pos')+'">'+ribuan(AGR-TGR)+'</td></tr>';
     h+='</tbody></table></div>';
-    // Best Estimate dengan breakdown (sesuai referensi MANAJEMEN TOKO)
+    // Best Estimate dengan breakdown + GM% skenario editable (sesuai referensi)
     if(needSales>0){
-      var gmRpBE=needSales*AG/100;
-      var fokus=(TG>0&&achG<100)?'Kejar GM Rp':'Kekurangan Nett Sales';
-      h+='<div class="iktcard" style="margin-top:12px;"><div class="lbl">🔮 Best Estimate — '+fokus+'</div>'
+      var gmRpBE=needSales*gmSken/100;
+      h+='<div class="iktcard" style="margin-top:12px;"><div class="lbl">🔮 Best Estimate — simulator skenario</div>'
         +'<table class="ikttable" style="margin-top:8px;"><tbody>'
-        +'<tr><td style="text-align:left;font-weight:400">Nett sales dibutuhkan</td><td class="num">'+ribuan(needSales)+'</td></tr>'
-        +'<tr><td style="text-align:left;font-weight:400">GM% aktual</td><td class="num">'+String(AG).replace('.',',')+'%</td></tr>'
-        +'<tr><td style="text-align:left;font-weight:400">GM Rp <small class="hint">(auto)</small></td><td class="num">'+ribuan(gmRpBE)+'</td></tr>'
-        +'<tr><td style="text-align:left;font-weight:400">Kurang</td><td class="num '+(short>0?'neg':'pos')+'">'+(short>0?ribuan(short):'target tercapai ✓')+'</td></tr>'
-        +'</tbody></table>';
-      if(TG>0&&achG<100&&AG>0){
-        h+='<div class="sub" style="margin-top:6px">'+ribuan(TGR)+' ÷ '+String(AG).replace('.',',')+'% = '+ribuan(needSales)+'</div>';
-      }else{
-        h+='<div class="sub" style="margin-top:6px">GM% on track — pakai target nett sales awal.</div>';
-      }
-      // Butuh per hari
-      var sisaHari=d.dim-d.tanggal;
-      if(short>0&&sisaHari>0){
-        h+='<div class="sub">Butuh '+ribuan(short/sisaHari)+'/hari × '+sisaHari+' hari sisa</div>';
-      }
-      h+='</div>';
+        +'<tr><td style="text-align:left;font-weight:400">Nett sales dibutuhkan</td><td class="num" id="iktBENeed">'+ribuan(needSales)+'</td></tr>'
+        +'<tr><td style="text-align:left;font-weight:400">GM% skenario <small class="hint">(bisa edit)</small></td>'
+        +'<td><input id="iktSken" inputmode="decimal" value="'+String(AG).replace('.',',')+'" placeholder="0,00" style="width:110px;padding:7px;text-align:right;border:1px solid var(--line);border-radius:6px;font-size:13px;background:var(--bg);color:var(--fg);"></td></tr>'
+        +'<tr><td style="text-align:left;font-weight:400">GM Rp <small class="hint">(auto)</small></td><td class="num" id="iktBEGmRp">'+ribuan(gmRpBE)+'</td></tr>'
+        +'</tbody></table>'
+        +'<div class="sub" id="iktBESub" style="margin-top:6px"></div>'
+        +'</div>';
+      // Set formula awal
+      setTimeout(function(){
+        var sub=document.getElementById('iktBESub');
+        if(sub){
+          if(focusGM&&gmSken>0) sub.textContent=ribuan(TGR)+' ÷ '+String(gmSken).replace('.',',')+'% = '+ribuan(needSales);
+          else if(focusGM) sub.textContent='Isi GM% skenario dulu untuk menghitung.';
+          else sub.textContent='GM% on track — pakai target nett sales awal.';
+        }
+        // Recalc saat skenario diubah
+        var skenEl=document.getElementById('iktSken');
+        if(skenEl){
+          skenEl.addEventListener('input', function(){
+            var v=parseFloat(String(skenEl.value).replace(',','.'))||0;
+            var ns=focusGM?(v>0?TGR/(v/100):0):TS;
+            var gr=ns*v/100;
+            var nd=document.getElementById('iktBENeed'); if(nd) nd.textContent=ns>0?ribuan(ns):'-';
+            var gr2=document.getElementById('iktBEGmRp'); if(gr2) gr2.textContent=ribuan(gr);
+            if(sub){
+              if(focusGM&&v>0) sub.textContent=ribuan(TGR)+' ÷ '+String(v).replace('.',',')+'% = '+ribuan(ns);
+              else if(focusGM) sub.textContent='Isi GM% skenario dulu untuk menghitung.';
+            }
+          });
+        }
+      }, 0);
     }
     body.innerHTML=h;
     // Per-toko untuk admin/korwil
