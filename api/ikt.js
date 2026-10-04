@@ -46,9 +46,14 @@ async function apiIkt(kode, iso) {
     }
   }
 
-  // Blok tanggal terakhir (untuk aktual)
-  const lastIso = iso_([p.y, p.m, D]);
-  const drL = maps.s2[lastIso];
+  // Cari tanggal terakhir yang ada datanya (untuk aktual & Time Factor)
+  // Misal: tgl 4 belum ada data → pakai tgl 3 (TF = 3/31)
+  let lastD = D, lastIso = iso_([p.y, p.m, D]), drL = maps.s2[lastIso];
+  while (lastD > 1 && !drL) {
+    lastD--;
+    lastIso = iso_([p.y, p.m, lastD]);
+    drL = maps.s2[lastIso];
+  }
   const akt = {};
   if (drL) {
     const blkL = await readBlockS2_(drL);
@@ -84,13 +89,13 @@ async function apiIkt(kode, iso) {
   const avgGmT = cntGmT > 0 ? sumGmT / cntGmT : 0;
   const avgGmA = cntGmA > 0 ? sumGmA / cntGmA : 0;
 
-  // Time Factor: (tanggal-1) / jumlah hari
-  const tf = D > 1 ? (D - 1) / dim : 0;
+  // Time Factor: tanggal terakhir ada data / jumlah hari (misal: 3/31)
+  const tf = lastD / dim;
 
   return {
     ok: true,
     iso: lastIso,
-    tanggal: D,
+    tanggal: lastD,
     dim,
     timeFactor: tf,
     // Untuk toko tunggal atau gabungan
