@@ -1024,13 +1024,25 @@ function saveForm(){
   var iso=document.getElementById('inTgl').value || todayISO();
   var nikKasir=document.getElementById('inNikKasir').value.trim();
   if(!nikKasir){ toast('Isi NIK kasir dulu'); return; }
-  /* Validasi: tidak boleh kosong, minimal 0 */
-  var emptyFound=false;
+  /* Validasi: tidak boleh kosong dan tidak boleh 0 (semua shift) */
+  var invalidFound=false;
+  var invalidMsg='';
   document.querySelectorAll('#formBody input').forEach(function(i){
-    if(i.value.trim()===''){ emptyFound=true; i.style.borderColor='var(--bad)'; }
-    else { i.style.borderColor=''; }
+    var vv=i.value.trim();
+    if(vv===''){ invalidFound=true; invalidMsg='Input tidak boleh kosong'; i.style.borderColor='var(--bad)'; }
+    else {
+      var k=i.getAttribute('data-k')||'';
+      var num=parseFloat(vv.replace(/\./g,'').replace(',','.'));
+      if(k!=='gm' && !isNaN(num) && num===0){
+        invalidFound=true;
+        var lbl=i.closest('.frow');
+        var lblTxt=(lbl&&lbl.querySelector('.lbl b'))?lbl.querySelector('.lbl b').textContent:k;
+        invalidMsg=lblTxt+' tidak boleh 0';
+        i.style.borderColor='var(--bad)';
+      } else { i.style.borderColor=''; }
+    }
   });
-  if(emptyFound){ toast('\u26a0\uFE0F Input tidak boleh kosong, minimal isi 0'); return; }
+  if(invalidFound){ toast('\u26a0\uFE0F '+invalidMsg); return; }
   /* Validasi khusus Shift 2 */
   if(S.shift===2){
     var stdInp=document.querySelector('#formBody input[data-k="std"]');
