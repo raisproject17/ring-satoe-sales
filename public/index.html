@@ -1355,13 +1355,19 @@ function loadBeanspot(){
 
 /* ---------- setting target ---------- */
 /* ==================== PERFORMANCE / IKT ==================== */
+function fmtTglID(iso){
+  var p=String(iso||'').split('-'); if(p.length<3) return iso||'';
+  var bln=['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+  return parseInt(p[2],10)+' '+bln[parseInt(p[1],10)-1]+' '+p[0];
+}
 function loadIkt(){
   var iso=document.getElementById('iktTgl').value||todayISO();
   var kode=(S.role==='toko')?S.kode:'';
-  document.getElementById('iktTglLbl').textContent='per '+fmtTglID_(iso);
+  var namaToko=(S.role==='toko')?(S.namaToko||S.kode):'Semua Toko';
+  document.getElementById('iktTglLbl').textContent='· '+fmtTglID(iso)+' · '+namaToko;
   document.getElementById('iktWho').textContent=S.nama||S.kode||'-';
-  document.getElementById('iktRole').textContent=S.role==='toko'?(S.namaToko||''):(S.role==='korwil'?'Korwil':'Admin');
-  document.getElementById('iktSub').textContent=(S.role==='toko')?('IKT — '+(S.namaToko||S.kode)):'IKT — Gabungan Semua Toko';
+  document.getElementById('iktRole').textContent=S.role==='toko'?namaToko:(S.role==='korwil'?'Korwil':'Admin');
+  document.getElementById('iktSub').textContent=(S.role==='toko')?('IKT — '+namaToko):'IKT — Gabungan Semua Toko';
   var body=document.getElementById('iktBody');
   body.innerHTML='<div class="skel"></div><div class="skel"></div>';
   document.getElementById('iktStoresCard').classList.add('hide');
