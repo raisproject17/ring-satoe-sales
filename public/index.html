@@ -1397,11 +1397,28 @@ function loadIkt(){
     h+='<tr><td>GM RP <small class="hint">(auto)</small></td><td class="num">'+ribuan(TGR)+'</td><td class="num">'+ribuan(AGR)+'</td>'
       +'<td class="num">'+achGR.toFixed(1)+'%</td><td class="num '+(AGR-TGR<0?'neg':'pos')+'">'+ribuan(AGR-TGR)+'</td></tr>';
     h+='</tbody></table></div>';
-    // Best Estimate
+    // Best Estimate dengan breakdown (sesuai referensi MANAJEMEN TOKO)
     if(needSales>0){
-      h+='<div class="iktcard" style="margin-top:12px;"><div class="lbl">🔮 Best Estimate</div>'
-        +'<div class="big" style="font-size:18px;">'+ribuan(needSales)+'</div>'
-        +'<div class="sub">Nett sales dibutuhkan'+(short>0?' · kurang '+ribuan(short):' · target tercapai ✓')+'</div></div>';
+      var gmRpBE=needSales*AG/100;
+      var fokus=(TG>0&&achG<100)?'Kejar GM Rp':'Kekurangan Nett Sales';
+      h+='<div class="iktcard" style="margin-top:12px;"><div class="lbl">🔮 Best Estimate — '+fokus+'</div>'
+        +'<table class="ikttable" style="margin-top:8px;"><tbody>'
+        +'<tr><td style="text-align:left;font-weight:400">Nett sales dibutuhkan</td><td class="num">'+ribuan(needSales)+'</td></tr>'
+        +'<tr><td style="text-align:left;font-weight:400">GM% aktual</td><td class="num">'+String(AG).replace('.',',')+'%</td></tr>'
+        +'<tr><td style="text-align:left;font-weight:400">GM Rp <small class="hint">(auto)</small></td><td class="num">'+ribuan(gmRpBE)+'</td></tr>'
+        +'<tr><td style="text-align:left;font-weight:400">Kurang</td><td class="num '+(short>0?'neg':'pos')+'">'+(short>0?ribuan(short):'target tercapai ✓')+'</td></tr>'
+        +'</tbody></table>';
+      if(TG>0&&achG<100&&AG>0){
+        h+='<div class="sub" style="margin-top:6px">'+ribuan(TGR)+' ÷ '+String(AG).replace('.',',')+'% = '+ribuan(needSales)+'</div>';
+      }else{
+        h+='<div class="sub" style="margin-top:6px">GM% on track — pakai target nett sales awal.</div>';
+      }
+      // Butuh per hari
+      var sisaHari=d.dim-d.tanggal;
+      if(short>0&&sisaHari>0){
+        h+='<div class="sub">Butuh '+ribuan(short/sisaHari)+'/hari × '+sisaHari+' hari sisa</div>';
+      }
+      h+='</div>';
     }
     body.innerHTML=h;
     // Per-toko untuk admin/korwil
