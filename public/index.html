@@ -1383,7 +1383,7 @@ function loadIkt(){
     var h='';
     // Kartu ringkasan
     h+='<div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; margin-bottom:14px;">';
-    h+='<div class="iktcard"><div class="lbl">⏱ Time Factor</div><div class="big">'+tf.toFixed(2)+'</div><div class="sub">('+(d.tanggal-1)+' ÷ '+d.dim+' hari)</div></div>';
+    h+='<div class="iktcard"><div class="lbl">⏱ Time Factor</div><div class="big">'+tf.toFixed(2)+'</div><div class="sub">('+d.tanggal+' ÷ '+d.dim+' hari)</div></div>';
     h+='<div class="iktcard"><div class="lbl">🎯 Achieve Nett</div><div class="big">'+achS.toFixed(1)+'%</div><div class="sub">'+ribuan(AS)+' / '+ribuan(TS)+'</div></div>';
     h+='<div class="iktcard"><div class="lbl">📊 Achieve GM%</div><div class="big">'+achG.toFixed(1)+'%</div><div class="sub">'+String(AG).replace('.',',')+'% / '+String(TG).replace('.',',')+'%</div></div>';
     h+='</div>';
