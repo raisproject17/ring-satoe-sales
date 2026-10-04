@@ -42,8 +42,8 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
   if (shift === 2) {
     sh.setValue(srow, S2_NIK_KASIR + 1, nikKasir);
     sh.setValue(srow, S2_KASIR + 1, kasirNama);
-    // Validasi: field wajib S2 tidak boleh 0 (NETT, STD, GM% divalidasi khusus; PSM/PWP/SERTIS di sini)
-    for (const k of ['psm', 'pwp', 'sertis']) {
+    // Validasi: field wajib S2 tidak boleh 0 (NETT, STD, GM% divalidasi khusus; PSM/PWP/SERTIS/SUEGER di sini)
+    for (const k of ['psm', 'pwp', 'sertis', 'suegerr']) {
       const f = S2_FIELDS.find(x => x.key === k);
       const v = parseNum_(actuals[k]);
       if (v === null || v <= 0)
