@@ -60,11 +60,20 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
     if (stdNew >= 1000)
       throw new Error('STD tidak boleh lebih dari 3 digit (maks 999).');
     // Validasi: GM% format xx,xx, range 10,00 - 26,00
-    if (!gmRaw) throw new Error('GM% wajib diisi (format: xx,xx contoh: 22,50).');
-    if (!/^\d{2},\d{2}$/.test(gmRaw))
-      throw new Error('GM% wajib format xx,xx (contoh: 22,50).');
-    const gmVal = parseNum_(gmRaw);
-    if (gmVal === null)
+    // Frontend kirim sebagai number (22.62) atau string ("22,62") — handle dua-duanya
+    var gmRawVal = actuals['gm'];
+    var gmVal;
+    if (typeof gmRawVal === 'number') {
+      gmVal = gmRawVal;
+    } else {
+      const gmRaw = String(gmRawVal ?? '').trim();
+      if (!gmRaw) throw new Error('GM% wajib diisi (format: xx,xx contoh: 22,50).');
+      if (!/^\d{2},\d{2}$/.test(gmRaw))
+        throw new Error('GM% wajib format xx,xx (contoh: 22,50).');
+      gmVal = parseNum_(gmRaw);
+    }
+    const gmRaw = String(gmRawVal ?? '');
+    if (gmVal === null || isNaN(gmVal))
       throw new Error('GM% tidak valid.');
     if (gmVal < 10 || gmVal > 26)
       throw new Error('GM% harus antara 10,00 - 26,00 (input: ' + gmRaw + '). Data invalid.');
