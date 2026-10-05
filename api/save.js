@@ -59,17 +59,15 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
       throw new Error('STD wajib diisi dan tidak boleh 0.');
     if (stdNew >= 1000)
       throw new Error('STD tidak boleh lebih dari 3 digit (maks 999).');
-    // Validasi: GM% wajib pakai koma (,), format xx,xx, max 25,00
+    // Validasi: GM% format xx,xx, range 10,00 - 26,00
     if (!gmRaw) throw new Error('GM% wajib diisi (format: xx,xx contoh: 22,50).');
-    if (gmRaw.indexOf(',') < 0)
-      throw new Error('GM% wajib pakai koma (,) contoh: 22,50.');
-    if (!/,\d{1,2}$/.test(gmRaw))
-      throw new Error('GM% wajib format xx,xx (contoh: 22,50 bukan 22).');
+    if (!/^\d{2},\d{2}$/.test(gmRaw))
+      throw new Error('GM% wajib format xx,xx (contoh: 22,50).');
     const gmVal = parseNum_(gmRaw);
-    if (gmVal === null || gmVal <= 0)
-      throw new Error('GM% wajib diisi dan tidak boleh 0.');
-    if (gmVal > 25)
-      throw new Error('GM% maksimal 25,00 (input: ' + gmRaw + '). Data invalid.');
+    if (gmVal === null)
+      throw new Error('GM% tidak valid.');
+    if (gmVal < 10 || gmVal > 26)
+      throw new Error('GM% harus antara 10,00 - 26,00 (input: ' + gmRaw + '). Data invalid.');
     // Validasi: NETT SALES tidak boleh kurang dari kemarin DAN tidak boleh > 2x kemarin
     const nettNew = parseNum_(actuals['nett']);
     if (nettNew !== null) {
