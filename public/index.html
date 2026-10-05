@@ -928,6 +928,45 @@ function setShift(s){
   if(s===3 && !S.s3){ toast('Toko ini tidak punya Shift 3'); return; }
   S.shift=s; syncSeg(); loadForm();
 }
+// --- Draft: simpan input ke localStorage biar nggak hilang kalau gagal save / tutup app ---
+function draftKey(){
+  var iso=document.getElementById('inTgl').value || todayISO();
+  return 'draft_lap_'+S.shift+'_'+iso+'_'+(S.kode||'');
+}
+var draftTimer=null;
+function saveDraft(){
+  clearTimeout(draftTimer);
+  draftTimer=setTimeout(function(){
+    try{
+      var d={};
+      document.querySelectorAll('#formBody input').forEach(function(i){
+        if(i.value!==''&&i.value!=='0') d[i.getAttribute('data-k')||'']=i.value;
+      });
+      var nk=document.getElementById('inNikKasir');
+      if(nk&&nk.value) d._nikKasir=nk.value;
+      if(Object.keys(d).length) localStorage.setItem(draftKey(), JSON.stringify(d));
+      else localStorage.removeItem(draftKey());
+    }catch(e){}
+  }, 400);
+}
+function restoreDraft(){
+  try{
+    var raw=localStorage.getItem(draftKey());
+    if(!raw) return false;
+    var d=JSON.parse(raw);
+    var restored=false;
+    document.querySelectorAll('#formBody input').forEach(function(i){
+      var k=i.getAttribute('data-k')||'';
+      // Hanya isi dari draft kalau server nggak kasih nilai (input masih kosong)
+      if(d[k]!==undefined && (i.value===''||i.value==='0')){ i.value=d[k]; restored=true; }
+    });
+    var nk=document.getElementById('inNikKasir');
+    if(nk&&d._nikKasir&&!nk.value){ nk.value=d._nikKasir; restored=true; }
+    if(restored) toast('📝 Draft dipulihkan');
+    return restored;
+  }catch(e){ return false; }
+}
+function clearDraft(){ try{ localStorage.removeItem(draftKey()); }catch(e){} }
 function loadForm(){
   var iso=document.getElementById('inTgl').value || todayISO();
   var body=document.getElementById('formBody');
@@ -970,6 +1009,7 @@ function loadForm(){
     clearFormDirty();
     body.querySelectorAll('input').forEach(function(i){
       i.addEventListener('input', markFormDirty);
+      i.addEventListener('input', saveDraft);
       // Auto-format: ribuan pakai titik (kecuali GM% yang pakai koma desimal)
       i.addEventListener('input', function(){
         var k=i.getAttribute('data-k')||'';
@@ -1000,6 +1040,11 @@ function loadForm(){
     document.getElementById('inNamaKasir').value='';
     if(mine.nikKasir) nikLookupNow('inNikKasir','inNamaKasir');
     if(mine.report) document.getElementById('saveInfo').textContent='✅ Sudah lapor — simpan untuk update';
+    // Pulihkan draft kalau server belum ada data
+    if(!mine.report) restoreDraft();
+    // Draft juga untuk NIK kasir
+    var nkEl=document.getElementById('inNikKasir');
+    if(nkEl) nkEl.addEventListener('input', saveDraft);
   }).catch(function(e){ toast('Gagal: '+(e.message||e)); });
 }
 function parseIn(v){
@@ -1075,6 +1120,7 @@ function saveForm(){
   var repNama=(S.role==='toko'&&S.nikPejabat)?('Pejabat '+S.nikPejabat):S.nama;
   run(['apiSave',S.shift,iso,S.kode,repNik,repNama,nikKasir,actuals]).then(function(){
     clearFormDirty();
+    clearDraft();
     toast('✅ Laporan tersimpan');
     document.getElementById('saveInfo').textContent='✅ Sudah lapor';
     loadDash._stale=true;
