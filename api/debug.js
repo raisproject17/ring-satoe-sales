@@ -10,7 +10,7 @@ function colName(i) {
 
 export default async function handler(req, res) {
   try {
-    const { iso, kode } = req.body || req.query || {};
+    const { iso, kode, action } = req.body || req.query || {};
     if (!iso) return res.status(400).json({ error: 'iso required (YYYY-MM-DD)' });
     const sh = getDb_().getSheetByName(TAB.S2);
     // Cari blok tanggal: scan kolom A
@@ -18,10 +18,23 @@ export default async function handler(req, res) {
     let dateRow = -1;
     for (let r = 0; r < colA.length; r++) {
       const v = String(colA[r][0] || '').trim();
-      // Format tanggal Indonesia DD/MM/YYYY atau ISO
       if (v.includes(iso.slice(8, 10)) && v.includes(iso.slice(0, 4))) { dateRow = r + 1; break; }
     }
     if (dateRow < 0) return res.json({ error: 'blok tanggal tidak ketemu', iso });
+
+    // ACTION: clear = hapus data tgl tsb (kecuali kolom A,B), biar user input ulang
+    if (action === 'clear') {
+      const N_STORES = 20;
+      for (let i = 0; i < N_STORES; i++) {
+        const r = dateRow + 3 + i;
+        // Clear C..CI (idx 2..86), sisakan A (kode) dan B (nama toko)
+        for (let c = 2; c < S2_WIDTH; c++) {
+          await sh.clearCell(r, c + 1);
+        }
+      }
+      await sh.flush();
+      return res.json({ ok: true, cleared: iso, dateRow });
+    }
     // Baca header (3 baris pertama blok) + cari baris toko
     const head = await sh.getValues(dateRow, 1, 3, S2_WIDTH);
     const stores = await sh.getValues(dateRow + 3, 1, 25, S2_WIDTH);
