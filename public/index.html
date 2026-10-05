@@ -974,11 +974,11 @@ function loadForm(){
       i.addEventListener('input', function(){
         var k=i.getAttribute('data-k')||'';
         if(k==='gm'){
-          // GM%: titik jadi koma
-          var v=i.value.replace(/\./g, ',');
-          // hanya satu koma
-          var parts=v.split(',');
-          if(parts.length>2) v=parts[0]+','+parts.slice(1).join('');
+          // GM%: auto koma — ketik 2 digit -> "22,", lanjut 2 digit -> "22,62"
+          var d=i.value.replace(/\D/g,'').slice(0,4);
+          var v=d;
+          if(d.length>2) v=d.slice(0,2)+','+d.slice(2);
+          else if(d.length===2) v=d+',';
           if(v!==i.value){ i.value=v; }
           return;
         }
@@ -1059,10 +1059,9 @@ function saveForm(){
     if(gmInp){
       var gmRaw=gmInp.value.trim();
       if(!gmRaw){ toast('\\u26a0\\uFE0F GM% wajib diisi (format: xx,xx contoh: 22,50)'); gmInp.focus(); return; }
-      if(gmRaw.indexOf(',')<0){ toast('\\u26a0\\uFE0F GM% wajib pakai koma (,) contoh: 22,50'); gmInp.focus(); return; }
-      if(!/,\d{1,2}$/.test(gmRaw)){ toast('\\u26a0\\uFE0F GM% wajib format xx,xx (contoh: 22,50 bukan 22)'); gmInp.focus(); return; }
-      var gmV=parseFloat(gmRaw.replace(/\./g,'').replace(',','.'));
-      if(gmV>25){ toast('\\u26a0\\uFE0F GM% maksimal 25,00'); gmInp.focus(); return; }
+      if(!/^\d{2},\d{2}$/.test(gmRaw)){ toast('\\u26a0\\uFE0F GM% wajib format xx,xx (contoh: 22,50)'); gmInp.focus(); return; }
+      var gmV=parseFloat(gmRaw.replace(',','.'));
+      if(gmV<10||gmV>26){ toast('\\u26a0\\uFE0F GM% harus antara 10,00 - 26,00'); gmInp.focus(); return; }
     }
   }
   var actuals={};
@@ -1489,7 +1488,13 @@ function loadIkt(){
         // Recalc + autosave saat skenario diubah
         if(skenEl){
           skenEl.addEventListener('input', function(){
-            var v=parseFloat(String(skenEl.value).replace(',','.'))||0;
+            // Auto koma: ketik 2 digit -> "22,", lanjut 2 digit -> "22,62"
+            var d=String(skenEl.value).replace(/\D/g,'').slice(0,4);
+            var fv=d;
+            if(d.length>2) fv=d.slice(0,2)+','+d.slice(2);
+            else if(d.length===2) fv=d+',';
+            if(fv!==skenEl.value) skenEl.value=fv;
+            var v=parseFloat(fv.replace(',','.'))||0;
             try{ localStorage.setItem(skenKey, String(v)); }catch(e){}
             // Logika: GM%<100% → kejar GM Rp (naikkan target nett); GM%>=100% → fokus kekurangan nett
             var ns=focusGM?(v>0?TGR/(v/100):0):TS;
@@ -1497,7 +1502,10 @@ function loadIkt(){
             var nd=document.getElementById('iktBENeed'); if(nd) nd.textContent=ns>0?ribuan(ns):'-';
             var gr2=document.getElementById('iktBEGmRp'); if(gr2) gr2.textContent=ribuan(gr);
             if(sub){
-              if(focusGM&&v>0) sub.textContent=ribuan(TGR)+' ÷ '+fmtGm(v)+'% = '+ribuan(ns);
+              if(focusGM&&v>0){
+                sub.textContent=ribuan(TGR)+' ÷ '+fmtGm(v)+'% = '+ribuan(ns);
+                if(v<10||v>26) sub.textContent+=' ⚠️ di luar range 10,00–26,00';
+              }
               else if(focusGM) sub.textContent='Isi GM% skenario dulu untuk menghitung.';
               else sub.textContent='GM% on track — pakai target nett sales awal.';
             }
