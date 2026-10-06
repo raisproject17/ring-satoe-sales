@@ -263,9 +263,9 @@
       .iktcard .big{font-size:15px; word-break:break-word;}
       .iktcard .lbl{font-size:10px;}
       .iktcard .sub{font-size:10px; line-height:1.3;}
-      .ikttable{font-size:11px;}
-      .ikttable th, .ikttable td{padding:6px 4px;}
-      .tablewrap{overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -6px; padding:0 6px;}
+      .ikttable{font-size:11px; min-width:520px;}
+      .ikttable th, .ikttable td{padding:6px 4px; white-space:nowrap;}
+      .tablewrap{display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; margin:0 -6px; padding:0 6px; width:auto;}
     }
     .iktcard .sub{font-size:12px; color:var(--mut); margin-top:4px;}
     .ikttable{width:100%; border-collapse:collapse; font-size:13px;}
@@ -1028,10 +1028,13 @@ function loadForm(){
           if(v!==i.value){ i.value=v; }
           return;
         }
-        // Lainnya: format ribuan otomatis
+        // Lainnya: format ribuan otomatis (ploss boleh minus)
+        var k2=i.getAttribute('data-k')||'';
+        var isNeg=(k2==='ploss'&&/^-/.test(i.value));
         var raw=i.value.replace(/[^0-9]/g,'');
         if(!raw){ if(i.value!=='' ) i.value=''; return; }
         var fmt=raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        if(isNeg) fmt='-'+fmt;
         if(fmt!==i.value){
           var pos=i.selectionStart;
           var oldLen=i.value.length;
@@ -1144,7 +1147,10 @@ function saveForm(){
   var actuals={};
   document.querySelectorAll('#formBody input').forEach(function(i){
     var v=parseIn(i.value);
-    actuals[i.dataset.k]=(v===null?0:Math.max(0,v));
+    var k=i.dataset.k||'';
+    // Product Loss boleh minus; lainnya tidak boleh negatif
+    if(k==='ploss'){ actuals[k]=(v===null?0:v); }
+    else{ actuals[k]=(v===null?0:Math.max(0,v)); }
   });
   var btn=document.getElementById('btnSave');
   btn.disabled=true; btn.textContent='⏳ Menyimpan…';
@@ -1537,11 +1543,12 @@ function loadIkt(){
     else if(needSales<=0){ needTxt='-'; needSub='isi target & GM% dulu'; }
     else if(sisaHari<=0){ needTxt=ribuan(short); needSub='tidak ada sisa hari!'; needCls='neg'; }
     else{ needTxt=ribuan(short/sisaHari)+'/hari'; needSub=ribuan(short)+' ÷ '+sisaHari+' hari'; }
-    // Kartu ringkasan (sesuai referensi)
-    h+='<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px;">';
-    h+='<div class="iktcard"><div class="lbl">⏱ Time Factor</div><div class="big">'+(tf*100).toFixed(1)+'%</div><div class="sub">'+d.tanggal+' ÷ '+d.dim+' hari</div></div>';
-    h+='<div class="iktcard"><div class="lbl">🎯 Fokus</div><div class="big" id="iktFokusTxt" style="font-size:16px;line-height:1.3;">'+fokusTxt+'</div><div class="sub" id="iktFokusSub">'+fokusSub+'</div></div>';
-    h+='<div class="iktcard'+(short>0?' warn':'')+'" id="iktNeedCard"><div class="lbl">💰 Butuh / Hari</div><div class="big '+needCls+'" id="iktNeedTxt" style="font-size:16px;line-height:1.3;">'+needTxt+'</div><div class="sub" id="iktNeedSub">'+needSub+'</div></div>';
+    // Kartu ringkasan — pakai desain dashboard summary card (.kpi)
+    h+='<div class="kpi-strip" style="grid-template-columns:repeat(3,1fr);">';
+    h+='<div class="kpi"><div class="k-label">⏱ Time Factor</div><div class="k-val">'+(tf*100).toFixed(1)+'%</div><div class="k-sub">'+d.tanggal+' ÷ '+d.dim+' hari</div></div>';
+    h+='<div class="kpi"><div class="k-label">🎯 Fokus</div><div class="k-val" id="iktFokusTxt" style="font-size:15px;">'+fokusTxt+'</div><div class="k-sub" id="iktFokusSub">'+fokusSub+'</div></div>';
+    var needKpiCls=short>0?'k-warn':(needCls==='pos'?'k-ok':(needCls==='neg'?'k-bad':''));
+    h+='<div class="kpi '+needKpiCls+'" id="iktNeedCard"><div class="k-label">💰 Butuh / Hari</div><div class="k-val" id="iktNeedTxt" style="font-size:15px;">'+needTxt+'</div><div class="k-sub" id="iktNeedSub">'+needSub+'</div></div>';
     h+='</div>';
     // Tabel IKT
     h+='<div class="tablewrap"><table class="ikttable"><thead><tr><th>Indikator</th><th>Target</th><th>Aktual</th><th>Achieve</th><th>Gap</th></tr></thead><tbody>';
@@ -1635,12 +1642,11 @@ function loadIkt(){
             var nSub=document.getElementById('iktNeedSub');
             var nCard=document.getElementById('iktNeedCard');
             if(nTxt&&nSub){
-              if(sht<=0&&ns>0){ nTxt.textContent='Target tercapai ✓'; nSub.textContent='tidak ada kekurangan'; nTxt.className='big pos'; }
-              else if(ns<=0){ nTxt.textContent='-'; nSub.textContent='isi target & GM% dulu'; nTxt.className='big'; }
-              else if(sisaHari<=0){ nTxt.textContent=ribuan(sht); nSub.textContent='tidak ada sisa hari!'; nTxt.className='big neg'; }
-              else{ nTxt.textContent=ribuan(sht/sisaHari)+'/hari'; nSub.textContent=ribuan(sht)+' ÷ '+sisaHari+' hari'; nTxt.className='big'; }
+              if(sht<=0&&ns>0){ nTxt.textContent='Target tercapai ✓'; nSub.textContent='tidak ada kekurangan'; nTxt.className='k-val'; nCard.className='kpi k-ok'; }
+              else if(ns<=0){ nTxt.textContent='-'; nSub.textContent='isi target & GM% dulu'; nTxt.className='k-val'; nCard.className='kpi'; }
+              else if(sisaHari<=0){ nTxt.textContent=ribuan(sht); nSub.textContent='tidak ada sisa hari!'; nTxt.className='k-val'; nCard.className='kpi k-bad'; }
+              else{ nTxt.textContent=ribuan(sht/sisaHari)+'/hari'; nSub.textContent=ribuan(sht)+' ÷ '+sisaHari+' hari'; nTxt.className='k-val'; nCard.className='kpi '+(sht>0?'k-warn':''); }
             }
-            if(nCard) nCard.classList.toggle('warn', sht>0);
           });
         }
       }, 0);
