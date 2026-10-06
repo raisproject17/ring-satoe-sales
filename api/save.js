@@ -59,6 +59,10 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
       throw new Error('STD wajib diisi dan tidak boleh 0.');
     if (stdNew >= 1000)
       throw new Error('STD tidak boleh lebih dari 3 digit (maks 999).');
+    // Validasi: FEEBASE maks 3 digit (qty, bukan rupiah)
+    const feeNew = parseNum_(actuals['feebase']);
+    if (feeNew !== null && feeNew >= 1000)
+      throw new Error('FEE BASE tidak boleh lebih dari 3 digit (maks 999). Isi QTY, bukan Rupiah.');
     // Validasi: GM% format xx,xx, range 10,00 - 26,00
     // Frontend kirim sebagai number (22.62) atau string ("22,62") — handle dua-duanya
     var gmRawVal = actuals['gm'];
@@ -77,7 +81,7 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
       throw new Error('GM% tidak valid.');
     if (gmVal < 10 || gmVal > 26)
       throw new Error('GM% harus antara 10,00 - 26,00 (input: ' + gmRaw + '). Data invalid.');
-    // Validasi: NETT SALES tidak boleh kurang dari kemarin DAN tidak boleh > 2x kemarin
+    // Validasi: NETT SALES tidak boleh kurang dari kemarin DAN tidak boleh > 3x kemarin
     const nettNew = parseNum_(actuals['nett']);
     if (nettNew !== null) {
       const prevRow = await findBlockRow_(TAB.S2, addDaysISO_(iso, -1));
@@ -89,9 +93,9 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
             if (nettNew < prevNett)
               throw new Error('NETT SALES Rp ' + fmtRibuan_(nettNew) +
                 ' tidak boleh kurang dari kemarin Rp ' + fmtRibuan_(prevNett) + '. Periksa kembali input.');
-            if (nettNew > prevNett * 2)
+            if (nettNew > prevNett * 3)
               throw new Error('NETT SALES Rp ' + fmtRibuan_(nettNew) +
-                ' tidak boleh lebih dari 2x kemarin (maks Rp ' + fmtRibuan_(prevNett * 2) + '). Periksa kembali input.');
+                ' tidak boleh lebih dari 3x kemarin (maks Rp ' + fmtRibuan_(prevNett * 3) + '). Periksa kembali input.');
           }
         }
       }
