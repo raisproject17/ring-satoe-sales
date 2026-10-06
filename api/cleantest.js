@@ -11,6 +11,11 @@ const STORES = ['2G97','2GAO','2GCA','2GU7','T043','T938','T880','2G07','T018','
 
 export default async function handler(req, res) {
   try {
+    // Batch: ?batch=0..3 (5 toko per batch)
+    const batch = parseInt(req.query.batch || '0');
+    const batchStores = STORES.slice(batch * 5, batch * 5 + 5);
+    if (batchStores.length === 0) return res.status(200).json({ ok: true, hasil: [] });
+
     const clearCols = new Set();
     for (const c of Object.values(S2_COLS)) {
       if (c.a !== undefined) clearCols.add(c.a + 1);
@@ -29,15 +34,14 @@ export default async function handler(req, res) {
 
     const sh = getDb_().getSheetByName(TAB.S2);
     const hasil = [];
-    for (const kode of STORES) {
+    for (const kode of batchStores) {
       const srow = await findStoreRow_(TAB.S2, dateRow, kode);
       if (!srow) { hasil.push(kode + ': skip'); continue; }
       for (const col of clearCols) sh.setValue(srow, col, '');
       hasil.push(kode + ': OK');
-      await new Promise(r => setTimeout(r, 1500));
     }
     await flush_();
-    return res.status(200).json({ ok: true, hasil });
+    return res.status(200).json({ ok: true, batch, hasil });
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
