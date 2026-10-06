@@ -1157,8 +1157,32 @@ function saveForm(){
     document.getElementById('saveInfo').textContent='✅ Sudah lapor';
     loadDash._stale=true;
     loadForm();
-  }).catch(function(e){ toast('❌ '+(e.message||e)); })
+  }).catch(function(e){
+    var msg=e.message||String(e);
+    // Popup khusus untuk error urutan shift
+    if(/belum laporan|belum melakukan laporan|Belum bisa laporan/i.test(msg)){
+      showWarnPopup(msg);
+    }else{
+      toast('❌ '+msg);
+    }
+  })
    .then(function(){ btn.disabled=false; btn.textContent='💾 Simpan Laporan'; });
+}
+
+/* Popup warning urutan shift */
+function showWarnPopup(msg){
+  var old=document.getElementById('warnOv');
+  if(old) old.remove();
+  var h='<div class="modal-ov" id="warnOv"><div class="modal" style="text-align:center;">'
+    +'<div style="font-size:48px;margin-bottom:8px;">⚠️</div>'
+    +'<h2>Belum Bisa Laporan</h2>'
+    +'<p style="margin:12px 0;font-size:15px;">'+esc(msg)+'</p>'
+    +'<button class="btn ok" style="width:100%;margin-top:8px;" id="warnClose">Mengerti</button>'
+    +'</div></div>';
+  document.body.insertAdjacentHTML('beforeend',h);
+  document.getElementById('warnOv').addEventListener('click', function(e){
+    if(e.target.id==='warnClose'||e.target===this){ document.getElementById('warnOv').remove(); }
+  });
 }
 
 /* ---------- dashboard ---------- */
