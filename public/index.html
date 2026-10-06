@@ -101,6 +101,12 @@
   .frow .lbl b{display:block; font-size:14px;}
   .frow .lbl span{font-size:12px; color:var(--mut);}
   .frow input{text-align:right; font-weight:700;}
+  /* NETT SALES: input lebih lebar (angka besar, mobile) */
+  .frow input[data-k="nett"]{min-width:130px; font-size:16px;}
+  @media(max-width:480px){
+    .frow{grid-template-columns:1fr 130px;}
+    .frow input[data-k="nett"]{min-width:130px;}
+  }
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .row{display:flex; gap:8px; align-items:center;}
   /* ============ CHIPS / PILLS ============ */
@@ -1040,6 +1046,27 @@ function loadForm(){
     document.getElementById('inNamaKasir').value='';
     if(mine.nikKasir) nikLookupNow('inNikKasir','inNamaKasir');
     if(mine.report) document.getElementById('saveInfo').textContent='✅ Sudah lapor — simpan untuk update';
+    // Live update: STD → target SUEGER (20%) & CEBAN (10%)
+    if(d.mode==='s2'){
+      var stdLive=document.querySelector('#formBody input[data-k="std"]');
+      if(stdLive){
+        stdLive.addEventListener('input', function(){
+          var sv=parseIn(stdLive.value);
+          if(sv===null||sv<=0) return;
+          var sgT=Math.round(sv*0.20), cbT=Math.round(sv*0.10);
+          var sgInp=document.querySelector('#formBody input[data-k="suegerr"]');
+          var cbInp=document.querySelector('#formBody input[data-k="ceban"]');
+          if(sgInp){
+            var lbl=sgInp.closest('.frow').querySelector('.lbl span');
+            if(lbl) lbl.textContent='Target: '+ribuan(sgT)+' · TTL: -';
+          }
+          if(cbInp){
+            var lbl2=cbInp.closest('.frow').querySelector('.lbl span');
+            if(lbl2) lbl2.textContent='Target: '+ribuan(cbT)+' · TTL: -';
+          }
+        });
+      }
+    }
     // Pulihkan draft kalau server belum ada data
     if(!mine.report) restoreDraft();
     // Draft juga untuk NIK kasir
@@ -1099,6 +1126,11 @@ function saveForm(){
     if(stdInp){
       var stdV=parseIn(stdInp.value);
       if(stdV!==null && stdV>=1000){ toast('\u26a0\uFE0F STD tidak boleh lebih dari 3 digit (maks 999)'); stdInp.focus(); return; }
+    }
+    var feeInp=document.querySelector('#formBody input[data-k="feebase"]');
+    if(feeInp){
+      var feeV=parseIn(feeInp.value);
+      if(feeV!==null && feeV>=1000){ toast('\u26a0\uFE0F FEE BASE tidak boleh lebih dari 3 digit (maks 999). Isi QTY, bukan Rupiah.'); feeInp.focus(); return; }
     }
     var gmInp=document.querySelector('#formBody input[data-k="gm"]');
     if(gmInp){
