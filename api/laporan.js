@@ -113,8 +113,11 @@ export async function apiLaporGenerate(iso, rpo, soKas) {
     L.push('');
   }
   /* INVENTORY — budget dari SUM aktual NETT SALES (terbentuk saat toko sudah lapor) */
-  let mPl = 0, mBr = 0;
-  days.forEach((x) => { mPl += x.plA; mBr += x.brA; });
+  /* Total PL aktual: nilai HARIAN saja (hari laporan), bukan akumulasi dari
+     tgl 1 — nilai harian tiap toko sudah mewakili total bulanan berjalan. */
+  const mPl = num0_(t.plA);
+  let mBr = 0;
+  days.forEach((x) => { mBr += x.brA; });
   const nettAInv = t.nettA; // sum aktual semua toko di tanggal laporan
   L.push('*INVENTORY*');
   L.push('5. PL (PRODUCT LOSS)');
