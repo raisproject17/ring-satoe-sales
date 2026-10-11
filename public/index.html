@@ -1032,7 +1032,9 @@ function loadForm(){
         var k2=i.getAttribute('data-k')||'';
         var isNeg=(k2==='ploss'&&/^-/.test(i.value));
         var raw=i.value.replace(/[^0-9]/g,'');
-        if(!raw){ if(i.value!=='' ) i.value=''; return; }
+        // Minus boleh diketik duluan (mis. "-5000"): pertahankan "-"
+        // saat digit belum ada, supaya tidak langsung terhapus.
+        if(!raw){ i.value=isNeg?'-':''; return; }
         var fmt=raw.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         if(isNeg) fmt='-'+fmt;
         if(fmt!==i.value){
