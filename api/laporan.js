@@ -8,7 +8,7 @@ import {
   laporInt_, laporPct_, laporAch_, laporSalam_,
   NAMA_BULAN_FULL_,
   apiGetStores, apiFindToko,
-  collectDay_, beanspotSplit_, laporCfgGetAsync_,
+  collectDay_, beanspotSplit_, laporCfgGetAsync_, ppsValidActual_,
 } from '../lib/utils.js';
 
 /** Bangun teks laporan cabang format WhatsApp. */
@@ -55,11 +55,6 @@ export async function apiLaporGenerate(iso, rpo, soKas) {
   for (let d = 1; d <= D; d++) days.push(await collectDay_(iso_([p.y, p.m, d]), maps));
   const t = days[D - 1];
 
-  function rangeTtl(key, s, e) {
-    let x = 0;
-    for (let d = s; d <= Math.min(e, D); d++) x += num0_(days[d - 1].ttl[key]);
-    return x;
-  }
   /* target flat fokus cabang: dari blok S1 hari itu, fallback konstanta */
   function flatT(comp) { return t.s1t[comp] || (LAPOR_FLAT_[comp] || 0) * N_STORES; }
   function flatN(comp) { return t.s1n[comp] || N_STORES; }
@@ -89,7 +84,8 @@ export async function apiLaporGenerate(iso, rpo, soKas) {
   const WR = [[1, 7], [8, 15], [16, 23], [24, dim]];
   for (let w = 0; w < 4; w++) {
     if (WR[w][0] > D) break;
-    const aw = rangeTtl('psm', WR[w][0], WR[w][1]);
+    // ACTUAL pakai data valid marketing bila ada jangkar di week ini
+    const aw = ppsValidActual_('psm', WR[w][0], WR[w][1], D, days, cfg.ppsValid, p.y, p.m).nilai;
     L.push('*WEEK ' + (w + 1) + '*');
     L.push('- TARGET : ' + laporInt_(cfg.psmW[w]));
     L.push('- ACTUAL : ' + laporInt_(aw));
@@ -103,7 +99,8 @@ export async function apiLaporGenerate(iso, rpo, soKas) {
     L.push(sec[0]);
     for (const pr of [['*PERIODE 1*', 1, 15, sec[2][0]], ['*PERIODE 2*', 16, dim, sec[2][1]]]) {
       if (pr[1] > D) continue; /* belum masuk periode, jangan tampilkan */
-      const a = rangeTtl(sec[1], pr[1], pr[2]);
+      // ACTUAL pakai data valid marketing bila ada jangkar di periode ini
+      const a = ppsValidActual_(sec[1], pr[1], pr[2], D, days, cfg.ppsValid, p.y, p.m).nilai;
       L.push(pr[0]);
       L.push('- TARGET : ' + laporInt_(pr[3]));
       L.push('- ACTUAL : ' + laporInt_(a));
