@@ -542,6 +542,26 @@
         <button class="btn ok" onclick="saveLaporCfg()">💾 Simpan Setting</button>
       </div>
       <div class="card">
+        <h2>📊 Data Valid Marketing (PPS)</h2>
+        <div class="legend">Input angka real dari marketing per tanggal. Jadi patokan valid laporan cabang: tgl laporan ≤ tgl input → pakai angka ini; tgl sesudahnya → angka ini + input toko.</div>
+        <div class="grid2">
+          <div><label>Komponen</label><select id="pvKomp"><option value="psm">PSM</option><option value="pwp">PWP</option><option value="sertis">SERBA GRATIS</option></select></div>
+          <div><label>Tanggal rilis marketing</label><input type="date" id="pvTgl"></div>
+        </div>
+        <div><label>Nilai aktual valid</label><input type="text" id="pvNilai" inputmode="numeric" placeholder="0"></div>
+        <div style="height:8px"></div>
+        <button class="btn ok" onclick="addPpsValid()">➕ Tambah Data Valid</button>
+        <div style="height:8px"></div>
+        <div id="pvList"><div class="legend">Memuat…</div></div>
+      </div>
+      <div class="card">
+        <h2>🔍 Komparasi PPS</h2>
+        <div class="legend">Target vs Input Toko vs Data Valid (s/d hari ini). Selisih = Input Toko − Data Valid.</div>
+        <div><label>Tanggal laporan</label><input type="date" id="pvCmpTgl" onchange="loadPpsCompare()"></div>
+        <div style="height:8px"></div>
+        <div id="pvCompare"><div class="legend">Memuat…</div></div>
+      </div>
+      <div class="card">
         <h2>☕ Beanspot — Target Real Qty</h2>
         <div class="grid2">
           <div><label>Tanggal</label><input type="date" id="beanTgl" onchange="loadBeanspot()"></div>
@@ -627,6 +647,9 @@ var API_MAP = {
   'apiLaporGenerate':['/api/laporan',   'generate',  ['iso','rpo','soKas']],
   'apiLaporCfgGet':  ['/api/admin',     'cfgget',    ['nik']],
   'apiLaporCfgSet':  ['/api/admin',     'cfgset',    ['nik','cfg']],
+  'apiPpsValidAdd':  ['/api/admin',     'ppsvalidadd', ['nik','komp','iso','nilai']],
+  'apiPpsValidDel':  ['/api/admin',     'ppsvaliddel', ['nik','idx']],
+  'apiPpsCompare':   ['/api/admin',     'ppscompare',  ['nik','iso']],
   'apiGetStores':    ['/api/admin',     'stores',    []],
   'apiLookupNik':    ['/api/admin',     'lookupnik', ['nik']],
   'apiApprovalList': ['/api/admin',     'approval_list', ['nik']],
@@ -1391,6 +1414,9 @@ function initAdmin(){
   loadBeanspot();
   loadLaporCfg();
   loadApprovals();
+  var pc=document.getElementById('pvCmpTgl');
+  if(pc && !pc.value) pc.value=todayISO();
+  loadPpsCompare();
   initLaporCfgAutoSave();
 }
 function loadLaporCfg(){
@@ -1408,6 +1434,8 @@ function loadLaporCfg(){
       document.getElementById('lcPwp'+j).value=(c.pwpP&&c.pwpP[j])||'';
       document.getElementById('lcSg'+j).value=(c.sgP&&c.sgP[j])||'';
     }
+    _ppsValid=c.ppsValid||[];
+    renderPpsValid();
   }).catch(function(e){ toast('Gagal: '+(e.message||e)); });
 }
 function saveLaporCfg(silent){
@@ -1437,6 +1465,65 @@ function initLaporCfgAutoSave(){
       el._lcBound=true;
     }
   });
+}
+/* ---------- data valid marketing PPS ---------- */
+var _ppsValid=[];
+function ppsKompLabel(k){ return k==='psm'?'PSM':k==='pwp'?'PWP':'SERBA GRATIS'; }
+function renderPpsValid(){
+  var el=document.getElementById('pvList');
+  if(!_ppsValid.length){ el.innerHTML='<div class="legend">Belum ada data valid marketing.</div>'; return; }
+  el.innerHTML='<table><thead><tr><th>Komponen</th><th>Tanggal</th><th>Nilai</th><th></th></tr></thead><tbody>'
+    +_ppsValid.map(function(a,i){
+      return '<tr><td><b>'+ppsKompLabel(a.komp)+'</b></td><td>'+esc(a.iso)+'</td><td><b>'+ribuan(a.nilai)+'</b></td>'
+        +'<td><button class="btn ghost sm" onclick="delPpsValid('+i+')">🗑️</button></td></tr>';
+    }).join('')+'</tbody></table>';
+}
+function addPpsValid(){
+  var komp=document.getElementById('pvKomp').value;
+  var iso=document.getElementById('pvTgl').value;
+  var nilai=parseIn(document.getElementById('pvNilai').value);
+  if(!iso){ toast('Isi tanggal rilis marketing dulu'); return; }
+  if(nilai===null){ toast('Isi nilai aktual valid dulu'); return; }
+  run(['apiPpsValidAdd',S.nik,komp,iso,nilai]).then(function(r){
+    _ppsValid=r.ppsValid||[];
+    renderPpsValid();
+    document.getElementById('pvNilai').value='';
+    loadPpsCompare();
+    toast('✅ Data valid marketing tersimpan');
+  }).catch(function(e){ toast('❌ '+(e.message||e)); });
+}
+function delPpsValid(i){
+  if(!confirm('Hapus data valid ini?')) return;
+  run(['apiPpsValidDel',S.nik,i]).then(function(r){
+    _ppsValid=r.ppsValid||[];
+    renderPpsValid();
+    loadPpsCompare();
+    toast('🗑️ Data valid dihapus');
+  }).catch(function(e){ toast('❌ '+(e.message||e)); });
+}
+function loadPpsCompare(){
+  var el=document.getElementById('pvCompare');
+  var iso=document.getElementById('pvCmpTgl').value || todayISO();
+  el.innerHTML='<div class="legend">Memuat…</div>';
+  run(['apiPpsCompare',S.nik,iso]).then(function(d){
+    var h='';
+    var blok=function(judul,rows){
+      if(!rows.length) return '';
+      var s='<div class="sec">'+judul+'</div>'
+        +'<table><thead><tr><th></th><th>Target</th><th>Input Toko</th><th>Data Valid</th><th>Selisih</th></tr></thead><tbody>';
+      rows.forEach(function(r){
+        var flag=r.anchor?' <span title="Pakai data valid marketing">✅</span>':'';
+        var sel=r.selisih===0?'-':(r.selisih>0?'+':'')+ribuan(r.selisih);
+        s+='<tr><td><b>'+esc(r.label)+'</b>'+flag+'</td><td>'+ribuan(r.target)+'</td><td>'+ribuan(r.input)+'</td><td><b>'+ribuan(r.valid)+'</b></td><td>'+sel+'</td></tr>';
+      });
+      return s+'</tbody></table>';
+    };
+    h+=blok('PSM per WEEK',d.psm||[]);
+    h+=blok('PWP per PERIODE',d.pwp||[]);
+    h+=blok('SERBA GRATIS per PERIODE',d.sertis||[]);
+    if(!d.adaJangkar) h='<div class="legend">Belum ada data valid marketing — kolom Data Valid = Input Toko.</div>'+h;
+    el.innerHTML=h||'<div class="legend">Tidak ada data.</div>';
+  }).catch(function(e){ el.innerHTML='<div class="legend">Gagal: '+esc(e.message||e)+'</div>'; });
 }
 /* ===== Approval Laporan Langsung ===== */
 function loadApprovals(){
