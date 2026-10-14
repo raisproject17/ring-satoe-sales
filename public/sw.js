@@ -1,5 +1,5 @@
 // RING SATOE SALES - Service Worker (PWA installable)
-const CACHE = 'ring-satoe-v3';
+const CACHE = 'ring-satoe-v4';
 const CORE = ['/', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -16,11 +16,25 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Network-first untuk API, cache-first untuk aset statis
+// API: network only (data harus fresh). Navigasi (app shell): network-first
+// supaya fitur terbaru langsung kepakai tanpa hapus cache manual; fallback ke
+// cache hanya saat offline. Aset statis lain: cache-first.
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (url.pathname.startsWith('/api/')) {
     // API: network only (data harus fresh)
+    return;
+  }
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then((res) => {
+        const copy = res.clone();
+        caches.open(CACHE).then((c) => c.put(e.request, copy));
+        return res;
+      }).catch(() =>
+        caches.match(e.request).then((hit) => hit || caches.match('/'))
+      )
+    );
     return;
   }
   e.respondWith(
