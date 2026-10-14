@@ -107,6 +107,11 @@
     .frow{grid-template-columns:1fr 130px;}
     .frow input[data-k="nett"]{min-width:130px;}
   }
+  /* Product Loss: kolom input lebih lega untuk tombol ± (iOS) */
+  .frow.plossrow{grid-template-columns:1fr 150px;}
+  @media(max-width:480px){
+    .frow.plossrow{grid-template-columns:1fr 160px;}
+  }
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .row{display:flex; gap:8px; align-items:center;}
   /* ============ CHIPS / PILLS ============ */
@@ -996,6 +1001,17 @@ function restoreDraft(){
   }catch(e){ return false; }
 }
 function clearDraft(){ try{ localStorage.removeItem(draftKey()); }catch(e){} }
+/* Toggle +/− untuk Product Loss (khusus iOS: keyboard numeric iPhone tidak ada tombol minus).
+ * Membalik tanda nilai lalu memicu event 'input' supaya auto-format ribuan ikut jalan. */
+function toggleMinus(btn){
+  var wrap=btn && btn.parentElement;
+  var inp=wrap?wrap.querySelector('input[data-k="ploss"]'):null;
+  if(!inp) return;
+  var v=inp.value||'';
+  inp.value=/^-/.test(v)?v.replace(/^-/,''):(v?'-'+v:'-');
+  try{ inp.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
+  try{ inp.focus(); }catch(e){}
+}
 function loadForm(){
   var iso=document.getElementById('inTgl').value || todayISO();
   var body=document.getElementById('formBody');
@@ -1023,8 +1039,15 @@ function loadForm(){
             +'<input type="text" inputmode="numeric" data-k="'+esc(f.key)+'_sisa" value="'+(mv.sisa!=null?mv.sisa:'')+'" placeholder="0"></div>';
         }else{
           var im=(f.kind==='pct')?'decimal':'numeric';
-          h+='<div class="frow"><div class="lbl"><b>'+esc(f.label)+'</b><span>'+esc(sub)+'</span></div>'
-            +'<input type="text" inputmode="'+im+'" data-k="'+esc(f.key)+'" value="'+(mv.a!=null?mv.a:'')+'" placeholder="0"></div>';
+          // Product Loss: tombol ± khusus iOS (keyboard numeric iPhone tidak ada tombol minus)
+          var isPloss=(f.key==='ploss');
+          var inpHtml='<input type="text" inputmode="'+im+'" data-k="'+esc(f.key)+'" value="'+(mv.a!=null?mv.a:'')+'" placeholder="0" style="flex:1;min-width:0;">';
+          if(isPloss){
+            inpHtml='<div style="display:flex;gap:6px;align-items:center;">'+inpHtml
+              +'<button type="button" class="btn ghost sm" onclick="toggleMinus(this)" title="Ubah +/\u2212" style="flex:0 0 auto;">\u00B1</button></div>';
+          }
+          h+='<div class="frow'+(isPloss?' plossrow':'')+'"><div class="lbl"><b>'+esc(f.label)+'</b><span>'+esc(sub)+'</span></div>'
+            +inpHtml+'</div>';
         }
       });
     }else{
