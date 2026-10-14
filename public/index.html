@@ -107,11 +107,13 @@
     .frow{grid-template-columns:1fr 130px;}
     .frow input[data-k="nett"]{min-width:130px;}
   }
-  /* Product Loss: kolom input lebih lega untuk tombol ± (iOS) */
+  /* Product Loss: kolom input lebih lega untuk dropdown tanda */
   .frow.plossrow{grid-template-columns:1fr 150px;}
   @media(max-width:480px){
     .frow.plossrow{grid-template-columns:1fr 160px;}
   }
+  /* Dropdown +/− Product Loss: kolom kecil, teks tengah */
+  select.ploss-sign{flex:0 0 62px; width:62px; text-align:center; font-weight:700; font-size:17px; padding:11px 2px;}
   .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
   .row{display:flex; gap:8px; align-items:center;}
   /* ============ CHIPS / PILLS ============ */
@@ -973,7 +975,7 @@ function saveDraft(){
   draftTimer=setTimeout(function(){
     try{
       var d={};
-      document.querySelectorAll('#formBody input').forEach(function(i){
+      document.querySelectorAll('#formBody input, #formBody select').forEach(function(i){
         if(i.value!==''&&i.value!=='0') d[i.getAttribute('data-k')||'']=i.value;
       });
       var nk=document.getElementById('inNikKasir');
@@ -989,11 +991,20 @@ function restoreDraft(){
     if(!raw) return false;
     var d=JSON.parse(raw);
     var restored=false;
-    document.querySelectorAll('#formBody input').forEach(function(i){
+    document.querySelectorAll('#formBody input, #formBody select').forEach(function(i){
       var k=i.getAttribute('data-k')||'';
       // Hanya isi dari draft kalau server nggak kasih nilai (input masih kosong)
       if(d[k]!==undefined && (i.value===''||i.value==='0')){ i.value=d[k]; restored=true; }
     });
+    // Sinkronkan dropdown tanda ploss dari nilainya (untuk draft lama)
+    try{
+      var _pi=document.querySelector('#formBody input[data-k="ploss"]');
+      var _ps=document.querySelector('#formBody select[data-k="ploss_sign"]');
+      if(_pi&&_ps&&!_ps.value){
+        if(/^-/.test(_pi.value)) _ps.value='-';
+        else if(/[0-9]/.test(_pi.value)) _ps.value='+';
+      }
+    }catch(e){}
     var nk=document.getElementById('inNikKasir');
     if(nk&&d._nikKasir&&!nk.value){ nk.value=d._nikKasir; restored=true; }
     if(restored) toast('📝 Draft dipulihkan');
@@ -1001,16 +1012,15 @@ function restoreDraft(){
   }catch(e){ return false; }
 }
 function clearDraft(){ try{ localStorage.removeItem(draftKey()); }catch(e){} }
-/* Toggle +/− untuk Product Loss (khusus iOS: keyboard numeric iPhone tidak ada tombol minus).
- * Membalik tanda nilai lalu memicu event 'input' supaya auto-format ribuan ikut jalan. */
-function toggleMinus(btn){
-  var wrap=btn && btn.parentElement;
+/* Dropdown +/− Product Loss: terapkan tanda ke input lalu picu auto-format.
+ * Select adalah sumber kebenaran tanda (khusus iOS yang keyboardnya tak ada minus). */
+function onPlossSign(sel){
+  if(!sel) return;
+  var wrap=sel.parentElement;
   var inp=wrap?wrap.querySelector('input[data-k="ploss"]'):null;
   if(!inp) return;
-  var v=inp.value||'';
-  inp.value=/^-/.test(v)?v.replace(/^-/,''):(v?'-'+v:'-');
+  markFormDirty(); saveDraft();
   try{ inp.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
-  try{ inp.focus(); }catch(e){}
 }
 function loadForm(){
   var iso=document.getElementById('inTgl').value || todayISO();
@@ -1039,12 +1049,18 @@ function loadForm(){
             +'<input type="text" inputmode="numeric" data-k="'+esc(f.key)+'_sisa" value="'+(mv.sisa!=null?mv.sisa:'')+'" placeholder="0"></div>';
         }else{
           var im=(f.kind==='pct')?'decimal':'numeric';
-          // Product Loss: tombol ± khusus iOS (keyboard numeric iPhone tidak ada tombol minus)
+          // Product Loss: kolom kecil = dropdown +/− (khusus iOS: keyboard numeric
+          // iPhone tidak ada tombol minus), kolom besar = rupiah
           var isPloss=(f.key==='ploss');
           var inpHtml='<input type="text" inputmode="'+im+'" data-k="'+esc(f.key)+'" value="'+(mv.a!=null?mv.a:'')+'" placeholder="0" style="flex:1;min-width:0;">';
           if(isPloss){
-            inpHtml='<div style="display:flex;gap:6px;align-items:center;">'+inpHtml
-              +'<button type="button" class="btn ghost sm" onclick="toggleMinus(this)" title="Ubah +/\u2212" style="flex:0 0 auto;">\u00B1</button></div>';
+            var initSign=/^-/.test(String(mv.a==null?'':mv.a))?'-':(/[0-9]/.test(String(mv.a==null?'':mv.a))?'+':'');
+            inpHtml='<div style="display:flex;gap:6px;align-items:center;">'
+              +'<select data-k="ploss_sign" class="ploss-sign" onchange="onPlossSign(this)" aria-label="Tanda plus minus">'
+              +'<option value="">\u00B1</option>'
+              +'<option value="+"'+(initSign==='+'?' selected':'')+'>+</option>'
+              +'<option value="-"'+(initSign==='-'?' selected':'')+'>\u2212</option>'
+              +'</select>'+inpHtml+'</div>';
           }
           h+='<div class="frow'+(isPloss?' plossrow':'')+'"><div class="lbl"><b>'+esc(f.label)+'</b><span>'+esc(sub)+'</span></div>'
             +inpHtml+'</div>';
@@ -1076,7 +1092,11 @@ function loadForm(){
         }
         // Lainnya: format ribuan otomatis (ploss boleh minus)
         var k2=i.getAttribute('data-k')||'';
-        var isNeg=(k2==='ploss'&&/^-/.test(i.value));
+        var plossSel=(k2==='ploss'&&i.parentElement)?i.parentElement.querySelector('select[data-k="ploss_sign"]'):null;
+        var typedNeg=(k2==='ploss'&&/^-/.test(i.value));
+        // Kalau user ketik minus manual (keyboard Android ada), sinkronkan dropdown
+        if(plossSel&&typedNeg&&!plossSel.value) plossSel.value='-';
+        var isNeg=plossSel?plossSel.value==='-':typedNeg;
         var raw=i.value.replace(/[^0-9]/g,'');
         // Minus boleh diketik duluan (mis. "-5000"): pertahankan "-"
         // saat digit belum ada, supaya tidak langsung terhapus.
@@ -1190,6 +1210,19 @@ function saveForm(){
       if(!/^\d{2},\d{2}$/.test(gmRaw)){ toast('\\u26a0\\uFE0F GM% wajib format xx,xx (contoh: 22,50)'); gmInp.focus(); return; }
       var gmV=parseFloat(gmRaw.replace(',','.'));
       if(gmV<10||gmV>26){ toast('\\u26a0\\uFE0F GM% harus antara 10,00 - 26,00'); gmInp.focus(); return; }
+    }
+    /* Product Loss: tanda +/− wajib dipilih kalau nilainya bukan 0 */
+    var plossInp=document.querySelector('#formBody input[data-k="ploss"]');
+    var plossSel=document.querySelector('#formBody select[data-k="ploss_sign"]');
+    if(plossInp&&plossSel){
+      var plossV=parseIn(plossInp.value);
+      if(plossV!==null&&plossV!==0&&!plossSel.value){
+        plossSel.style.borderColor='var(--bad)';
+        toast('\u26a0\uFE0F Pilih + atau \u2212 untuk Product Loss dulu');
+        try{ plossSel.focus(); }catch(e){}
+        return;
+      }
+      plossSel.style.borderColor='';
     }
   }
   var actuals={};
