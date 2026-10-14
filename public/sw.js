@@ -1,5 +1,5 @@
 // RING SATOE SALES - Service Worker (PWA installable)
-const CACHE = 'ring-satoe-v4';
+const CACHE = 'ring-satoe-v5';
 const CORE = ['/', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -26,8 +26,9 @@ self.addEventListener('fetch', (e) => {
     return;
   }
   if (e.request.mode === 'navigate') {
+    // cache:'reload' = lewati HTTP cache browser, selalu ambil terbaru dari server
     e.respondWith(
-      fetch(e.request).then((res) => {
+      fetch(e.request, { cache: 'reload' }).then((res) => {
         const copy = res.clone();
         caches.open(CACHE).then((c) => c.put(e.request, copy));
         return res;
