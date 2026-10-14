@@ -6,7 +6,7 @@ import {
   apiGetStores, apiLookupNik,
   requireAdminNik_, laporCfgGetAsync_, laporCfgSet_,
   approvalList_, approvalAdd_, approvalDel_, clearReport_,
-  ppsCompare_,
+  ppsCompare_, ppsCompareInvalidate_,
 } from '../lib/utils.js';
 
 const PPS_KOMP_ = ['psm', 'pwp', 'sertis'];
@@ -60,6 +60,7 @@ export async function apiPpsValidAdd(nik, komp, iso, nilai) {
   if (ada >= 0) list[ada] = entri; else list.push(entri);
   cfg.ppsValid = list.sort((x, y) => (x.iso < y.iso ? -1 : x.iso > y.iso ? 1 : 0));
   await laporCfgSet_(cfg);
+  ppsCompareInvalidate_();
   return { ok: true, ppsValid: cfg.ppsValid };
 }
 
@@ -73,6 +74,7 @@ export async function apiPpsValidDel(nik, idx) {
   list.splice(idx, 1);
   cfg.ppsValid = list;
   await laporCfgSet_(cfg);
+  ppsCompareInvalidate_();
   return { ok: true, ppsValid: cfg.ppsValid };
 }
 
