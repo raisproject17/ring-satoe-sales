@@ -1237,44 +1237,78 @@ function saveForm(){
     if(k==='ploss'){ actuals[k]=(v===null?0:v); }
     else{ actuals[k]=(v===null?0:Math.max(0,v)); }
   });
-  var btn=document.getElementById('btnSave');
-  btn.disabled=true; btn.textContent='⏳ Menyimpan…';
-  var repNik=(S.role==='toko'&&S.nikPejabat)?S.nikPejabat:S.nik;
-  var repNama=(S.role==='toko'&&S.nikPejabat)?('Pejabat '+S.nikPejabat):S.nama;
-  run(['apiSave',S.shift,iso,S.kode,repNik,repNama,nikKasir,actuals]).then(function(){
-    clearFormDirty();
-    clearDraft();
-    toast('✅ Laporan tersimpan');
-    document.getElementById('saveInfo').textContent='✅ Sudah lapor';
-    loadDash._stale=true;
-    loadForm();
-  }).catch(function(e){
-    var msg=e.message||String(e);
-    // Popup khusus untuk error urutan shift
-    if(/belum laporan|belum melakukan laporan|Belum bisa laporan/i.test(msg)){
-      showWarnPopup(msg);
-    }else{
-      toast('❌ '+msg);
-    }
-  })
-   .then(function(){ btn.disabled=false; btn.textContent='💾 Simpan Laporan'; });
+  function kirimSave(){
+    var btn=document.getElementById('btnSave');
+    btn.disabled=true; btn.textContent='⏳ Menyimpan…';
+    var repNik=(S.role==='toko'&&S.nikPejabat)?S.nikPejabat:S.nik;
+    var repNama=(S.role==='toko'&&S.nikPejabat)?('Pejabat '+S.nikPejabat):S.nama;
+    run(['apiSave',S.shift,iso,S.kode,repNik,repNama,nikKasir,actuals]).then(function(){
+      clearFormDirty();
+      clearDraft();
+      toast('✅ Laporan tersimpan');
+      document.getElementById('saveInfo').textContent='✅ Sudah lapor';
+      loadDash._stale=true;
+      loadForm();
+    }).catch(function(e){
+      var msg=e.message||String(e);
+      // Popup card khusus: NETT SALES =/< kemarin
+      var mNett=/NETT_KEMARIN:\s*([\s\S]*)/i.exec(msg);
+      if(mNett){
+        showCenterPopup('Validasi NETT SALES',
+          (mNett[1]||'sales tidak boleh =/< dari kemaren, pastikan check kembali untuk EOD dan Daily Performance').trim());
+      }
+      // Popup khusus untuk error urutan shift
+      else if(/belum laporan|belum melakukan laporan|Belum bisa laporan/i.test(msg)){
+        showWarnPopup(msg);
+      }else{
+        toast('❌ '+msg);
+      }
+    })
+     .then(function(){ btn.disabled=false; btn.textContent='💾 Simpan Laporan'; });
+  }
+  // Product Loss = 0 → popup notifikasi dulu (input 0 tetap boleh, hanya notif)
+  if(S.shift===2 && actuals['ploss']===0){
+    showCenterPopup('Cek Product Loss',
+      'pastikan kembali nominal PL, cek report 39/daily performance untuk validasi data, dan gunakan -/+ sesuai actual',
+      [{id:'lanjut',label:'Mengerti, Lanjut Simpan',cls:'ok'},{id:'perbaiki',label:'Perbaiki Dulu',cls:'ghost'}],
+      function(act){
+        if(act==='lanjut'){ kirimSave(); }
+        else{
+          var pi=document.querySelector('#formBody input[data-k="ploss"]');
+          if(pi){ pi.focus(); }
+        }
+      });
+    return;
+  }
+  kirimSave();
 }
 
-/* Popup warning urutan shift */
-function showWarnPopup(msg){
+/* Popup card tengah generik. buttons=[{id,label,cls}]; onClose(act) dipanggil
+ * dengan id tombol yang ditekan (null bila klik backdrop). */
+function showCenterPopup(title, msg, buttons, onClose){
   var old=document.getElementById('warnOv');
   if(old) old.remove();
+  var btns=buttons||[{id:'warnClose',label:'Mengerti',cls:'ok'}];
   var h='<div class="modal-ov" id="warnOv"><div class="modal" style="text-align:center;">'
     +'<div style="font-size:48px;margin-bottom:8px;">⚠️</div>'
-    +'<h2>Belum Bisa Laporan</h2>'
+    +'<h2>'+esc(title)+'</h2>'
     +'<p style="margin:12px 0;font-size:15px;">'+esc(msg)+'</p>'
-    +'<button class="btn ok" style="width:100%;margin-top:8px;" id="warnClose">Mengerti</button>'
+    +btns.map(function(b){
+      return '<button class="btn '+b.cls+'" style="width:100%;margin-top:8px;" data-act="'+b.id+'">'+esc(b.label)+'</button>';
+    }).join('')
     +'</div></div>';
   document.body.insertAdjacentHTML('beforeend',h);
-  document.getElementById('warnOv').addEventListener('click', function(e){
-    if(e.target.id==='warnClose'||e.target===this){ document.getElementById('warnOv').remove(); }
+  var ov=document.getElementById('warnOv');
+  var done=false;
+  function close(act){ if(done) return; done=true; ov.remove(); if(onClose) onClose(act); }
+  ov.addEventListener('click', function(e){
+    var t=e.target.closest('[data-act]');
+    if(t){ close(t.getAttribute('data-act')); return; }
+    if(e.target===ov){ close(null); }
   });
 }
+/* Popup warning urutan shift */
+function showWarnPopup(msg){ showCenterPopup('Belum Bisa Laporan', msg); }
 
 /* ---------- dashboard ---------- */
 var dashMode = 'harian'; /* harian | mtd */
