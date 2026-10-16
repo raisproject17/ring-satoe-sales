@@ -81,7 +81,7 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
       throw new Error('GM% tidak valid.');
     if (gmVal < 10 || gmVal > 26)
       throw new Error('GM% harus antara 10,00 - 26,00 (input: ' + gmRaw + '). Data invalid.');
-    // Validasi: NETT SALES tidak boleh kurang dari kemarin DAN tidak boleh > 3x kemarin
+    // Validasi: NETT SALES tidak boleh SAMA/KURANG dari kemarin DAN tidak boleh > 3x kemarin
     const nettNew = parseNum_(actuals['nett']);
     if (nettNew !== null) {
       const prevRow = await findBlockRow_(TAB.S2, addDaysISO_(iso, -1));
@@ -90,9 +90,8 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
         if (psrow) {
           const prevNett = parseNum_(await sh.getValue(psrow, S2_COLS.nett.a + 1));
           if (prevNett !== null && prevNett > 0) {
-            if (nettNew < prevNett)
-              throw new Error('NETT SALES Rp ' + fmtRibuan_(nettNew) +
-                ' tidak boleh kurang dari kemarin Rp ' + fmtRibuan_(prevNett) + '. Periksa kembali input.');
+            if (nettNew <= prevNett)
+              throw new Error('NETT_KEMARIN: sales tidak boleh =/< dari kemaren, pastikan check kembali untuk EOD dan Daily Performance (kemarin Rp ' + fmtRibuan_(prevNett) + ', input Rp ' + fmtRibuan_(nettNew) + ').');
             if (nettNew > prevNett * 3)
               throw new Error('NETT SALES Rp ' + fmtRibuan_(nettNew) +
                 ' tidak boleh lebih dari 3x kemarin (maks Rp ' + fmtRibuan_(prevNett * 3) + '). Periksa kembali input.');
