@@ -8,7 +8,7 @@ import {
   laporInt_, laporPct_, laporAch_, laporSalam_,
   NAMA_BULAN_FULL_,
   apiGetStores, apiFindToko,
-  collectDay_, beanspotSplit_, laporCfgGetAsync_, ppsValidActual_,
+  collectDay_, beanspotSplit_, laporCfgGetAsync_, ppsPeriodActual_,
 } from '../lib/utils.js';
 
 /** Bangun teks laporan cabang format WhatsApp. */
@@ -84,8 +84,8 @@ export async function apiLaporGenerate(iso, rpo, soKas) {
   const WR = [[1, 7], [8, 15], [16, 23], [24, dim]];
   for (let w = 0; w < 4; w++) {
     if (WR[w][0] > D) break;
-    // ACTUAL pakai data valid marketing bila ada jangkar di week ini
-    const aw = ppsValidActual_('psm', WR[w][0], WR[w][1], D, days, cfg.ppsValid, p.y, p.m).nilai;
+    // ACTUAL pakai data valid marketing periode ini bila ada
+    const aw = ppsPeriodActual_('psm', 'W' + (w + 1), p.y, p.m, WR[w][0], WR[w][1], D, days, cfg.ppsValid).nilai;
     L.push('*WEEK ' + (w + 1) + '*');
     L.push('- TARGET : ' + laporInt_(cfg.psmW[w]));
     L.push('- ACTUAL : ' + laporInt_(aw));
@@ -97,14 +97,14 @@ export async function apiLaporGenerate(iso, rpo, soKas) {
   const PR = [['3. PWP', 'pwp', cfg.pwpP], ['4. SERBA GRATIS', 'sertis', cfg.sgP]];
   for (const sec of PR) {
     L.push(sec[0]);
-    for (const pr of [['*PERIODE 1*', 1, 15, sec[2][0]], ['*PERIODE 2*', 16, dim, sec[2][1]]]) {
-      if (pr[1] > D) continue; /* belum masuk periode, jangan tampilkan */
-      // ACTUAL pakai data valid marketing bila ada jangkar di periode ini
-      const a = ppsValidActual_(sec[1], pr[1], pr[2], D, days, cfg.ppsValid, p.y, p.m).nilai;
+    for (const pr of [['*PERIODE 1*', 'P1', 1, 15, sec[2][0]], ['*PERIODE 2*', 'P2', 16, dim, sec[2][1]]]) {
+      if (pr[2] > D) continue; /* belum masuk periode, jangan tampilkan */
+      // ACTUAL pakai data valid marketing periode ini bila ada
+      const a = ppsPeriodActual_(sec[1], pr[1], p.y, p.m, pr[2], pr[3], D, days, cfg.ppsValid).nilai;
       L.push(pr[0]);
-      L.push('- TARGET : ' + laporInt_(pr[3]));
+      L.push('- TARGET : ' + laporInt_(pr[4]));
       L.push('- ACTUAL : ' + laporInt_(a));
-      L.push('- ACHIVE : ' + laporAch_(a, pr[3], 1));
+      L.push('- ACHIVE : ' + laporAch_(a, pr[4], 1));
       L.push('- ');
     }
     L.push('');
