@@ -6,15 +6,19 @@ import {
   apiGetStores, apiLookupNik,
   requireAdminNik_, laporCfgGetAsync_, laporCfgSet_,
   approvalList_, approvalAdd_, approvalDel_, clearReport_,
-  ppsCompare_, ppsCompareInvalidate_,
+  ppsCompare_, ppsCompareInvalidate_, ppsValidNormal_, PPS_PERIODE_,
 } from '../lib/utils.js';
 
 const PPS_KOMP_ = ['psm', 'pwp', 'sertis'];
+/* Bersihkan + normalisasi ke format periode (migrasi entri lama bertanggal). */
 function ppsValidBersih_(list) {
-  return (Array.isArray(list) ? list : [])
-    .filter((a) => a && PPS_KOMP_.includes(a.komp) && /^\d{4}-\d{2}-\d{2}$/.test(a.iso || ''))
-    .map((a) => ({ komp: a.komp, iso: a.iso, nilai: Math.max(0, parseNum_(a.nilai) || 0) }))
-    .sort((x, y) => (x.iso < y.iso ? -1 : x.iso > y.iso ? 1 : 0));
+  const norm = ppsValidNormal_((Array.isArray(list) ? list : [])
+    .filter((a) => a && PPS_KOMP_.includes(a.komp))
+    .map((a) => ({
+      komp: a.komp, periode: a.periode, bulan: a.bulan, iso: a.iso,
+      nilai: Math.max(0, parseNum_(a.nilai) || 0),
+    })));
+  return norm;
 }
 
 /** Setting laporan (admin only untuk tulis) */
@@ -46,19 +50,23 @@ export async function apiLaporCfgSet(nik, cfg) {
   return { ok: true };
 }
 
-/** Tambah satu data valid marketing PPS (admin only). */
-export async function apiPpsValidAdd(nik, komp, iso, nilai) {
+/** Tambah satu data valid marketing PPS per periode (admin only). */
+export async function apiPpsValidAdd(nik, komp, periode, bulan, nilai) {
   requireAdminNik_(nik);
   komp = String(komp || '').toLowerCase();
   if (!PPS_KOMP_.includes(komp)) throw new Error('Komponen harus psm/pwp/sertis');
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) throw new Error('Tanggal tidak valid');
+  periode = String(periode || '').toUpperCase();
+  if (!PPS_PERIODE_[komp].includes(periode))
+    throw new Error('Periode ' + komp.toUpperCase() + ' harus ' + PPS_PERIODE_[komp].join('/'));
+  if (!/^\d{4}-\d{2}$/.test(bulan || '')) throw new Error('Bulan tidak valid');
   const cfg = await laporCfgGetAsync_();
   const list = ppsValidBersih_(cfg.ppsValid);
-  // Satu komponen + satu tanggal = satu jangkar (timpa bila sudah ada).
-  const ada = list.findIndex((a) => a.komp === komp && a.iso === iso);
-  const entri = { komp, iso, nilai: Math.max(0, parseNum_(nilai) || 0) };
+  // Satu (komponen, periode, bulan) = satu entri (timpa bila sudah ada).
+  const ada = list.findIndex((a) => a.komp === komp && a.periode === periode && a.bulan === bulan);
+  const entri = { komp, periode, bulan, nilai: Math.max(0, parseNum_(nilai) || 0) };
   if (ada >= 0) list[ada] = entri; else list.push(entri);
-  cfg.ppsValid = list.sort((x, y) => (x.iso < y.iso ? -1 : x.iso > y.iso ? 1 : 0));
+  cfg.ppsValid = list.sort((x, y) =>
+    (x.bulan + x.periode) < (y.bulan + y.periode) ? -1 : 1);
   await laporCfgSet_(cfg);
   ppsCompareInvalidate_();
   return { ok: true, ppsValid: cfg.ppsValid };
@@ -86,12 +94,12 @@ export async function apiPpsCompare(nik, iso) {
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-  const { action, nik, cfg, kode, iso, shift, alasan, id, komp, nilai, idx } = req.body || {};
+  const { action, nik, cfg, kode, iso, shift, alasan, id, komp, periode, bulan, nilai, idx } = req.body || {};
   try {
     switch (action) {
       case 'cfgget':    return res.status(200).json(await apiLaporCfgGet(nik));
       case 'cfgset':    return res.status(200).json(await apiLaporCfgSet(nik, cfg));
-      case 'ppsvalidadd': return res.status(200).json(await apiPpsValidAdd(nik, komp, iso, nilai));
+      case 'ppsvalidadd': return res.status(200).json(await apiPpsValidAdd(nik, komp, periode, bulan, nilai));
       case 'ppsvaliddel': return res.status(200).json(await apiPpsValidDel(nik, idx));
       case 'ppscompare':  return res.status(200).json(await apiPpsCompare(nik, iso));
       case 'stores':    return res.status(200).json(await apiGetStores());
