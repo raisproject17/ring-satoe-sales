@@ -8,7 +8,7 @@ import {
   laporInt_, laporPct_, laporAch_, laporSalam_,
   NAMA_BULAN_FULL_,
   apiGetStores, apiFindToko,
-  collectDay_, beanspotSplit_, laporCfgGetAsync_, ppsValidActual_,
+  collectDay_, prefetchBlocks_, beanspotSplit_, laporCfgGetAsync_, ppsValidActual_,
 } from '../lib/utils.js';
 
 /** Bangun teks laporan cabang format WhatsApp. */
@@ -51,8 +51,13 @@ export async function apiLaporGenerate(iso, rpo, soKas) {
   const dim = new Date(p.y, p.m, 0).getDate();
   const D = Math.min(p.d, dim);
   const maps = { s1: await blockMap_(TAB.S1), s2: await blockMap_(TAB.S2), s3: await blockMap_(TAB.S3) };
+  // Prefetch: 1x baca rentang per tab untuk seluruh bulan (hemat kuota API),
+  // blok harian dipotong dari memori di collectDay_.
+  const isosBulan = [];
+  for (let d = 1; d <= D; d++) isosBulan.push(iso_([p.y, p.m, d]));
+  const pref = await prefetchBlocks_(maps, isosBulan);
   const days = [];
-  for (let d = 1; d <= D; d++) days.push(await collectDay_(iso_([p.y, p.m, d]), maps));
+  for (let d = 1; d <= D; d++) days.push(await collectDay_(isosBulan[d - 1], maps, pref));
   const t = days[D - 1];
 
   /* target flat fokus cabang: dari blok S1 hari itu, fallback konstanta */
