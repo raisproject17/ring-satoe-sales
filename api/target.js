@@ -5,14 +5,17 @@ import {
   getDb_, findBlockRow_, findStoreRow_, readBlockMkt_, readBlockS2_,
   tabOf_, ensureBlock_, parseNum_, fmtPct_, fmtTglID_, parts_, todayID_,
   apiGetStores, apiFindToko,
-  requireAdminNik_, laporCfgGet_, laporCfgSet_, flush_,
+  requireAdminNik_, laporCfgGetAsync_, laporCfgSet_, flush_,
 } from '../lib/utils.js';
 
 /** Ambil target NETT SALES & STD per toko untuk blok S2 tanggal iso + target cabang. */
 export async function apiTargetGet(nik, iso) {
   requireAdminNik_(nik);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(iso || '')) throw new Error('Tanggal tidak valid');
-  const cfg = laporCfgGet_();
+  /* WAJIB async (baca sheet): versi sync hanya baca memori per-instance,
+     di instance cold mengembalikan default 0 sehingga panel tampil kosong
+     padahal data di sheet aman. */
+  const cfg = await laporCfgGetAsync_();
   const dr = await findBlockRow_(TAB.S2, iso);
   const sh = getDb_().getSheetByName(TAB.S2);
   const stores = (await apiGetStores()).map((t) => ({ kode: t.kode, nama: t.nama, nett: null, std: null }));
@@ -45,7 +48,10 @@ export async function apiTargetSet(nik, iso, data) {
     if (nt !== null) sh.setValue(r, S2_COLS.nett.t + 1, nt); else sh.clearCell(r, S2_COLS.nett.t + 1);
     if (st !== null) sh.setValue(r, S2_COLS.std.t + 1, st); else sh.clearCell(r, S2_COLS.std.t + 1);
   }
-  const cfg = laporCfgGet_();
+  /* Baca config ASLI dari sheet (async). Versi sync di instance cold
+     mengembalikan default → laporCfgSet_ di bawah akan menimpa config
+     asli (termasuk ppsValid) dengan default. */
+  const cfg = await laporCfgGetAsync_();
   /* REPLACE bersih: data upload/manual menimpa total. Hanya kolom yang ada
      di input yang ditimpa; kolom yang tidak ada dipertahankan. */
   function hasData(v) {
