@@ -41,7 +41,18 @@ export async function apiLaporCfgSet(nik, cfg) {
     for (let i = 0; i < n; i++) o.push(Math.max(0, parseNum_(v[i]) || 0));
     return o;
   }
-  d.psmW = arr(cfg.psmW, 4); d.pwpP = arr(cfg.pwpP, 2); d.sgP = arr(cfg.sgP, 2);
+  /* Jangan timpa target bila input kosong (pola sama seperti apiTargetSet):
+     field kosong = tidak diubah, BUKAN di-nol-kan. Tanpa ini, auto-save
+     panel setting yang terpicu saat field belum ter-load akan menghapus
+     target cabang yang tersimpan. */
+  function hasData(v) {
+    v = v || [];
+    for (let i = 0; i < v.length; i++) { if (parseNum_(v[i]) !== null) return true; }
+    return false;
+  }
+  d.psmW = hasData(cfg.psmW) ? arr(cfg.psmW, 4) : (cur.psmW || d.psmW);
+  d.pwpP = hasData(cfg.pwpP) ? arr(cfg.pwpP, 2) : (cur.pwpP || d.pwpP);
+  d.sgP = hasData(cfg.sgP) ? arr(cfg.sgP, 2) : (cur.sgP || d.sgP);
   // Data valid marketing PPS dipertahankan (dikelola via endpoint khusus).
   d.ppsValid = ppsValidBersih_(cur.ppsValid);
   // Catatan Vercel: ScriptProperties tidak ada di serverless. Nilai disimpan
