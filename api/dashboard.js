@@ -1,8 +1,9 @@
 /* Dashboard — port dari 10_api.gs:
  * apiStatus, apiRanking, apiRekap, apiTokoDash, apiTren */
-import { TAB, N_STORES, DEADLINE_LABEL, LAPOR_WINDOW_, S2_FIELDS, hasS3_ } from '../lib/config.js';
+import { TAB, N_STORES, DEADLINE_LABEL, LAPOR_WINDOW_, S2_FIELDS, hasS3_, BLOCK_SIZE, MKT_WIDTH, S2_WIDTH } from '../lib/config.js';
 import {
   tabOf_, findBlockRow_, getAllBlocks_, readBlockMkt_, readBlockS2_,
+  parseBlockMkt_, parseBlockS2_, getDb_,
   parts_, fmtTglID_, todayID_,
   fmtPct_, deadlineLate_, NAMA_BULAN_ABBR_,
   apiGetStores,
@@ -334,10 +335,29 @@ export async function apiTren(kode, n) {
   for (const shift of [1, 2, 3]) {
     const tab = tabOf_(shift);
     const blocks = (await getAllBlocks_(tab)).slice(-n);
+    // Prefetch: SATU baca rentang per tab untuk semua blok (bukan 1 baca/blok).
+    // Tanpa ini, tren n=14 = 42 baca API sekali panggil — biang lonjakan kuota.
+    let pref = null;
+    if (blocks.length) {
+      const sh = getDb_().getSheetByName(tab);
+      const width = shift === 2 ? S2_WIDTH : MKT_WIDTH;
+      const from = blocks[0].row;
+      const to = blocks[blocks.length - 1].row + BLOCK_SIZE - 1;
+      pref = { from, v: await sh.getValues(from, 1, to - from, width) };
+    }
     const arr = [];
     for (const b of blocks) {
+      let blk, blk2;
+      if (pref) {
+        const potong = pref.v.slice(b.row - pref.from, b.row - pref.from + BLOCK_SIZE - 1);
+        if (shift === 2) blk = parseBlockS2_(potong);
+        else blk2 = parseBlockMkt_(potong);
+      } else if (shift === 2) {
+        blk = await readBlockS2_(b.row);
+      } else {
+        blk2 = await readBlockMkt_(tab, b.row);
+      }
       if (shift === 2) {
-        const blk = await readBlockS2_(b.row);
         blk.stores.forEach((s) => {
           if (s.kode.toUpperCase() !== kode) return;
           const vv = {}, names = [];
@@ -348,7 +368,6 @@ export async function apiTren(kode, n) {
           arr.push({ iso: b.iso, tgl: fmtTglID_(b.iso), comps: names, vals: vv });
         });
       } else {
-        const blk2 = await readBlockMkt_(tab, b.row);
         blk2.stores.forEach((s) => {
           if (s.kode.toUpperCase() !== kode) return;
           const vv2 = {};
