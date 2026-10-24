@@ -208,11 +208,15 @@ export async function apiRekap(iso, mode) {
   return res;
 }
 
-/** Dashboard 1 toko: rekap harian (status shift), breakdown target NETT SALES, komponen. */
+/** Dashboard 1 toko: rekap harian (status shift), breakdown target NETT SALES, komponen.
+ *  Di-cache 120 dtk per instance (hemat baca Sheets; data berubah hanya saat toko save). */
 export async function apiTokoDash(kode, iso, mode) {
   kode = String(kode || '').trim().toUpperCase();
   if (!iso) iso = todayID_();
   const mtd = String(mode || '').toLowerCase() === 'mtd';
+  const ckey = 'tokodash_' + kode + '_' + iso + (mtd ? '_mtd' : '');
+  const hit = cache.get(ckey);
+  if (hit) return JSON.parse(hit);
   let tgl = fmtTglID_(iso);
   let s2vals = null, s2done = false;
   // Kumpulkan vals per hari (harian: 1 hari, MTD: tgl 1 s/d iso)
@@ -305,7 +309,7 @@ export async function apiTokoDash(kode, iso, mode) {
   const std = s2vals ? (s2vals.std || {}) : {};
   const gm = s2vals ? (s2vals.gm || {}) : {};
   const nettA = nett.a || 0, nettT = nett.t || 0;
-  return {
+  const res = {
     kode, iso, tgl, hasS3: s3exist,
     shifts: { s1: s1done, s2: s2done, s3: s3done },
     nett: { t: nettT, a: nettA, acv: nettT ? (nettA / nettT * 100) : null, gap: nettA - nettT },
@@ -313,12 +317,19 @@ export async function apiTokoDash(kode, iso, mode) {
     gm: { t: gm.t || 0, a: gm.a || 0 },
     comps,
   };
+  cache.put(ckey, JSON.stringify(res), 120);
+  return res;
 }
 
-/** Tren 1 toko: n blok terakhir per shift, bentuk seragam {comps, vals{nama:{t,a}}} */
+/** Tren 1 toko: n blok terakhir per shift, bentuk seragam {comps, vals{nama:{t,a}}}.
+ *  Di-cache 300 dtk per instance: satu panggilan tanpa cache bisa membaca
+ *  n×3 blok (s.d. 180 baca) — biang lonjakan kuota saat banyak toko buka tren. */
 export async function apiTren(kode, n) {
   kode = String(kode || '').trim().toUpperCase();
   n = Math.min(Math.max(+n || 14, 1), 60);
+  const ckey = 'tren_' + kode + '_' + n;
+  const hit = cache.get(ckey);
+  if (hit) return JSON.parse(hit);
   const res = { kode };
   for (const shift of [1, 2, 3]) {
     const tab = tabOf_(shift);
@@ -348,6 +359,7 @@ export async function apiTren(kode, n) {
     }
     res['s' + shift] = arr;
   }
+  cache.put(ckey, JSON.stringify(res), 300);
   return res;
 }
 
