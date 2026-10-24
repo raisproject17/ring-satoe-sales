@@ -1533,6 +1533,7 @@ function loadLaporCfg(){
     }
     _ppsValid=c.ppsValid||[];
     renderPpsValid();
+    _lcLoaded=true;
   }).catch(function(e){ toast('Gagal: '+(e.message||e)); });
 }
 function saveLaporCfg(silent){
@@ -1545,9 +1546,13 @@ function saveLaporCfg(silent){
     if(!silent) toast('\u2705 Setting laporan tersimpan');
   }).catch(function(e){ toast('\u274c '+(e.message||e)); });
 }
-/* Auto-save setting: tiap ada perubahan, simpan otomatis setelah 1.2 detik */
+/* Auto-save setting: tiap ada perubahan, simpan otomatis setelah 1.2 detik.
+   HANYA aktif setelah load awal selesai (_lcLoaded): tanpa ini, ketikan
+   sebelum field terisi akan menyimpan field kosong dan menghapus data. */
 var _lcSaveT=null;
+var _lcLoaded=false;
 function _lcAutoSave(){
+  if(!_lcLoaded) return;
   clearTimeout(_lcSaveT);
   _lcSaveT=setTimeout(function(){ saveLaporCfg(true); }, 1200);
 }
