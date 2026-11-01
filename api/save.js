@@ -82,19 +82,27 @@ export async function apiSave(shift, iso, kode, nik, nama, nikKasir, actuals) {
     if (gmVal < 10 || gmVal > 26)
       throw new Error('GM% harus antara 10,00 - 26,00 (input: ' + gmRaw + '). Data invalid.');
     // Validasi: NETT SALES tidak boleh SAMA/KURANG dari kemarin DAN tidak boleh > 3x kemarin
+    // NETT bersifat kumulatif dalam sebulan: BEDA BULAN = PROSES BEDA.
+    // Tgl 1 tidak punya pembanding "kemarin" yang valid (kemarin = bulan lalu,
+    // nilainya akumulasi sebulan penuh — mis. 31 Okt Rp 430 jt vs input 1 Nov
+    // Rp 15 jt yang baru sehari jalan) -> kedua cek ini dilewati, setara reset
+    // pembanding ke 0 setiap tgl 1.
     const nettNew = parseNum_(actuals['nett']);
     if (nettNew !== null) {
-      const prevRow = await findBlockRow_(TAB.S2, addDaysISO_(iso, -1));
-      if (prevRow) {
-        const psrow = await findStoreRow_(TAB.S2, prevRow, kode);
-        if (psrow) {
-          const prevNett = parseNum_(await sh.getValue(psrow, S2_COLS.nett.a + 1));
-          if (prevNett !== null && prevNett > 0) {
-            if (nettNew <= prevNett)
-              throw new Error('NETT_KEMARIN: sales tidak boleh =/< dari kemaren, pastikan check kembali untuk EOD dan Daily Performance (kemarin Rp ' + fmtRibuan_(prevNett) + ', input Rp ' + fmtRibuan_(nettNew) + ').');
-            if (nettNew > prevNett * 3)
-              throw new Error('NETT SALES Rp ' + fmtRibuan_(nettNew) +
-                ' tidak boleh lebih dari 3x kemarin (maks Rp ' + fmtRibuan_(prevNett * 3) + '). Periksa kembali input.');
+      const prevISO = addDaysISO_(iso, -1);
+      if (prevISO.slice(0, 7) === iso.slice(0, 7)) {
+        const prevRow = await findBlockRow_(TAB.S2, prevISO);
+        if (prevRow) {
+          const psrow = await findStoreRow_(TAB.S2, prevRow, kode);
+          if (psrow) {
+            const prevNett = parseNum_(await sh.getValue(psrow, S2_COLS.nett.a + 1));
+            if (prevNett !== null && prevNett > 0) {
+              if (nettNew <= prevNett)
+                throw new Error('NETT_KEMARIN: sales tidak boleh =/< dari kemaren, pastikan check kembali untuk EOD dan Daily Performance (kemarin Rp ' + fmtRibuan_(prevNett) + ', input Rp ' + fmtRibuan_(nettNew) + ').');
+              if (nettNew > prevNett * 3)
+                throw new Error('NETT SALES Rp ' + fmtRibuan_(nettNew) +
+                  ' tidak boleh lebih dari 3x kemarin (maks Rp ' + fmtRibuan_(prevNett * 3) + '). Periksa kembali input.');
+            }
           }
         }
       }
