@@ -1,6 +1,6 @@
 /* Dashboard — port dari 10_api.gs:
- * apiStatus, apiRanking, apiRekap, apiTokoDash, apiTren */
-import { TAB, N_STORES, DEADLINE_LABEL, LAPOR_WINDOW_, S2_FIELDS, hasS3_, BLOCK_SIZE, MKT_WIDTH, S2_WIDTH } from '../lib/config.js';
+ * apiStatus, apiRanking, apiRekap, apiPershift, apiTokoDash, apiTren */
+import { TAB, N_STORES, DEADLINE_LABEL, LAPOR_WINDOW_, S2_FIELDS, hasS3_, compNameOf_, BLOCK_SIZE, MKT_WIDTH, S2_WIDTH } from '../lib/config.js';
 import {
   tabOf_, findBlockRow_, getAllBlocks_, readBlockMkt_, readBlockS2_,
   parseBlockMkt_, parseBlockS2_, getDb_,
@@ -209,6 +209,77 @@ export async function apiRekap(iso, mode) {
   return res;
 }
 
+/** Laporan per shift (untuk AI bot): per shift (1/2/3) per toko, aktual semua
+ *  kategori dari blok SHIFT1#/SHIFT2#/SHIFT3# tanggal iso.
+ *  - S2: vals[key].a = aktual shift itu (BUKAN ttl — ttl itu total 3 shift).
+ *  - S1/S3: vals keyed by nama komponen sheet -> dipetakan ke key kanonik
+ *    via compNameOf_ (S2_FIELDS); komponen tak dikenal ikut dengan nama
+ *    mentah ternormalisasi supaya tidak ada kategori yang hilang.
+ *  - Shift tanpa blok -> ada:false (bukan error). S3 hanya 5 toko 3-shift
+ *    (sama seperti apiStatus). GM% sengaja tidak ikut (bukan kategori yang
+ *    bisa dijumlah). Di-cache 120 dtk per instance. */
+const PERSHIFT_KEYS = ['nett', 'std', 'psm', 'pwp', 'sertis', 'ploss', 'pbr',
+  'telur', 'toys', 'hotweel', 'djoy', 'unipin', 'oneshoot', 'suegerr',
+  'ceban', 'jsm', 'rtd', 'onigiri', 'evoucher', 'feebase'];
+
+function normComp_(s) {
+  return String(s || '').toUpperCase().replace(/\s+/g, ' ').trim();
+}
+
+export async function apiPershift(iso) {
+  if (!iso) iso = todayID_();
+  const ckey = 'pershift_' + iso;
+  const hit = cache.get(ckey);
+  if (hit) return JSON.parse(hit);
+  const shifts = {};
+  for (const shift of [1, 2, 3]) {
+    const tab = tabOf_(shift);
+    const row = await findBlockRow_(tab, iso);
+    if (!row) {
+      shifts[shift] = { ada: false, stores: [], total: {}, nDone: 0, nStores: 0 };
+      continue;
+    }
+    const blk = (shift === 2) ? await readBlockS2_(row) : await readBlockMkt_(tab, row);
+    // Peta nama komponen sheet -> key kanonik (hanya untuk S1/S3).
+    const peta = {};
+    if (shift !== 2) {
+      S2_FIELDS.forEach((f) => {
+        const cn = normComp_(f.comp || f.label || '');
+        if (cn) peta[cn] = f.key;
+      });
+    }
+    const stores = [];
+    const total = {};
+    PERSHIFT_KEYS.forEach((k) => { total[k] = 0; });
+    let nDone = 0;
+    for (const s of blk.stores) {
+      if (shift === 3 && !hasS3_(s.kode)) continue;
+      const done = String(s.report || '').toUpperCase().indexOf('DONE') >= 0;
+      if (done) nDone++;
+      const vals = {};
+      if (shift === 2) {
+        PERSHIFT_KEYS.forEach((k) => {
+          const v = (s.vals[k] || {}).a;
+          vals[k] = (v === null || v === undefined) ? 0 : v;
+          total[k] += vals[k];
+        });
+      } else {
+        Object.keys(s.vals || {}).forEach((cn) => {
+          const key = peta[normComp_(cn)] || normComp_(cn);
+          const v = (s.vals[cn] || {}).a;
+          vals[key] = (v === null || v === undefined) ? 0 : v;
+        });
+        PERSHIFT_KEYS.forEach((k) => { total[k] += vals[k] || 0; });
+      }
+      stores.push({ kode: s.kode, nama: s.toko, done, vals });
+    }
+    shifts[shift] = { ada: true, stores, total, nDone, nStores: stores.length };
+  }
+  const res = { iso, tgl: fmtTglID_(iso), shifts };
+  cache.put(ckey, JSON.stringify(res), 120);
+  return res;
+}
+
 /** Dashboard 1 toko: rekap harian (status shift), breakdown target NETT SALES, komponen.
  *  Di-cache 120 dtk per instance (hemat baca Sheets; data berubah hanya saat toko save). */
 export async function apiTokoDash(kode, iso, mode) {
@@ -390,6 +461,7 @@ export default async function handler(req, res) {
       case 'status':   return res.status(200).json(await apiStatus(iso));
       case 'ranking':   return res.status(200).json(await apiRanking(iso, mode));
       case 'rekap':     return res.status(200).json(await apiRekap(iso, mode));
+      case 'pershift':  return res.status(200).json(await apiPershift(iso));
       case 'tokodash':  return res.status(200).json(await apiTokoDash(kode, iso, mode));
       case 'tren':      return res.status(200).json(await apiTren(kode, n));
       default:          return res.status(400).json({ error: 'Unknown action: ' + action });
