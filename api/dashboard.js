@@ -10,6 +10,16 @@ import {
 } from '../lib/utils.js';
 import * as cache from '../lib/cache.js';
 
+/** Baca blok S2 sekali saja per baris dalam satu panggilan API (hemat read).
+ *  Loop MTD (ranking/rekap/tokodash) dulu membaca tiap blok 2x — sekali untuk
+ *  cari target flat, sekali lagi untuk agregasi. Map diisi malas (lazy),
+ *  jadi scan yang berhenti dini tetap hemat. Blok terparse hanya dibaca,
+ *  tidak diubah — aman dipakai ulang. */
+async function readS2Once_(map, row) {
+  if (!map.has(row)) map.set(row, await readBlockS2_(row));
+  return map.get(row);
+}
+
 /** Status laporan harian: per shift daftar toko + DONE/BELUM + telat (S3 hanya 5 toko) */
 export async function apiStatus(iso) {
   if (!iso) iso = todayID_();
@@ -64,9 +74,10 @@ export async function apiRanking(iso, mode) {
   // Target FLAT: ambil dari tanggal terbaru yang ada targetnya (bukan selalu tgl 1)
   // Misal target diupdate tgl 4 → jadi acuan untuk tgl 4 dst
   const flatT = {};
+  const s2map = new Map(); // baca blok sekali saja (hemat read)
   if (mtd && rows.length) {
     for (let ri = rows.length - 1; ri >= 0; ri--) {
-      const blk = await readBlockS2_(rows[ri].row);
+      const blk = await readS2Once_(s2map, rows[ri].row);
       let found = false;
       blk.stores.forEach((s) => {
         const k = String(s.kode).toUpperCase();
@@ -82,7 +93,7 @@ export async function apiRanking(iso, mode) {
     }
   }
   for (const b of rows) {
-    const blk = await readBlockS2_(b.row);
+    const blk = await readS2Once_(s2map, b.row);
     const isEnd = (b.iso === isoEnd);
     blk.stores.forEach((s) => {
       const k = String(s.kode).toUpperCase();
@@ -144,9 +155,12 @@ export async function apiRekap(iso, mode) {
   const acc = {};
   // Target FLAT: dari tanggal terbaru yang ada targetnya
   const flatT = {};
+  const s2map = new Map(); // baca blok sekali saja (hemat read)
+  // firstBlk = blok hari pertama bulan itu (untuk target byComp dari tgl 1).
+  const firstBlk = (mtd && rows.length) ? await readS2Once_(s2map, rows[0].row) : null;
   if (mtd && rows.length) {
     for (let ri = rows.length - 1; ri >= 0; ri--) {
-      const blk = await readBlockS2_(rows[ri].row);
+      const blk = await readS2Once_(s2map, rows[ri].row);
       blk.stores.forEach((s) => {
         const k = String(s.kode).toUpperCase();
         if (!(k in flatT)) {
@@ -161,7 +175,7 @@ export async function apiRekap(iso, mode) {
   }
   if (mtd) compKeys.forEach((ck) => { byComp[ck].t = 0; });
   for (const b of rows) {
-    const blk = await readBlockS2_(b.row);
+    const blk = await readS2Once_(s2map, b.row);
     const isEnd = (b.iso === isoEnd);
     blk.stores.forEach((s) => {
       const k = String(s.kode).toUpperCase();
@@ -309,9 +323,10 @@ export async function apiTokoDash(kode, iso, mode) {
   let gmCount = 0, gmSum = 0;
   // Ambil target flat dari tanggal terbaru yang ada targetnya
   const flatVals = {};
+  const s2map = new Map(); // baca blok sekali saja (hemat read)
   if (mtd && days.length) {
     for (let di = days.length - 1; di >= 0; di--) {
-      const b = await readBlockS2_(days[di].row);
+      const b = await readS2Once_(s2map, days[di].row);
       let found = false;
       b.stores.forEach((s) => {
         if (s.kode.toUpperCase() !== kode) return;
@@ -324,7 +339,7 @@ export async function apiTokoDash(kode, iso, mode) {
     }
   }
   for (const d of days) {
-    const blk2 = await readBlockS2_(d.row);
+    const blk2 = await readS2Once_(s2map, d.row);
     if (!mtd) tgl = fmtTglID_(blk2.iso);
     blk2.stores.forEach((s) => {
       if (s.kode.toUpperCase() !== kode) return;
