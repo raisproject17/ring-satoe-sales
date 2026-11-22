@@ -45,8 +45,12 @@ export async function apiTargetSet(nik, iso, data) {
     const r = await findStoreRow_(TAB.S2, dateRow, kode);
     if (!r) continue;
     const nt = parseNum_(s.nett), st = parseNum_(s.std);
-    if (nt !== null) sh.setValue(r, S2_COLS.nett.t + 1, nt); else sh.clearCell(r, S2_COLS.nett.t + 1);
-    if (st !== null) sh.setValue(r, S2_COLS.std.t + 1, st); else sh.clearCell(r, S2_COLS.std.t + 1);
+    /* null = lewati (JANGAN hapus): save dari panel yang gagal load
+       (mis. targetget kena kuota) pernah menghapus SELURUH kolom target
+       blok 19 Nov 2026 -> blok 19/20/21 Nov target 0, laporan cabang
+       NET SALES & SUEGER ikut 0. Hapus target hanya via sheet langsung. */
+    if (nt !== null) sh.setValue(r, S2_COLS.nett.t + 1, nt);
+    if (st !== null) sh.setValue(r, S2_COLS.std.t + 1, st);
   }
   /* Baca config ASLI dari sheet (async). Versi sync di instance cold
      mengembalikan default → laporCfgSet_ di bawah akan menimpa config
